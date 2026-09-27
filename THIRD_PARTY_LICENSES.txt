@@ -8,10 +8,12 @@ project was itself taken from https://github.com/progh2/mini-homepage.
 All of these are published under the MIT License reproduced below.
 
 Files derived from those projects:
-  - public/assets/**            (mini room background, page background,
-                                 furniture and character images; except
-                                 public/assets/profile.png and
-                                 public/assets/projects/**, which are the site
+  - public/assets/**            (mini room background, page background and
+                                 furniture images; except
+                                 public/assets/profile.png,
+                                 public/assets/projects/** and
+                                 public/assets/character/** (drawn by
+                                 scripts/make-minime.py), which are the site
                                  owner's own images, not from those projects)
   - src/styles/**               (ported from src/app/globals.css)
   - src/components/**, src/lib/**, src/config/**  (ported and adapted)
