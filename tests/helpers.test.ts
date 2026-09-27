@@ -4,31 +4,61 @@ import { clock, secondsAt, trackIndexAt } from "../src/lib/bgm.ts";
 import { UNSORTED_YEAR, groupByYear, resolveTab } from "../src/lib/blocks.ts";
 import { formatDate, formatTime, seoulDay } from "../src/lib/format.ts";
 import { StorageFullError, createMemoryStorage, readJson, writeJson, type KeyValueStorage } from "../src/lib/storage.ts";
-import { VISIT_KEY, nextVisitCounts, recordVisit } from "../src/lib/visits.ts";
+import { COUNTER_NAMESPACE, VISIT_KEY, counterUrl, dayKey, recordVisit, shouldCount } from "../src/lib/visits.ts";
 import { loadAuthor, saveAuthor } from "../src/lib/author.ts";
 import type { ContentBlock, TabDef } from "../src/config/site.ts";
 
-test("visit counter increments today on the same Seoul day and resets on a new day", () => {
-  assert.deepEqual(nextVisitCounts(null, "2026-09-27"), { total: 1, today: 1, day: "2026-09-27" });
-  assert.deepEqual(nextVisitCounts({ total: 602, today: 13, day: "2026-09-27" }, "2026-09-27"), {
-    total: 603,
-    today: 14,
-    day: "2026-09-27"
-  });
-  assert.deepEqual(nextVisitCounts({ total: 602, today: 13, day: "2026-09-26" }, "2026-09-27"), {
-    total: 603,
-    today: 1,
-    day: "2026-09-27"
-  });
-  assert.deepEqual(nextVisitCounts({ total: "x", today: 1, day: "d" }, "2026-09-27").total, 1);
+function fakeCounter(fail = false) {
+  const values = new Map<string, number>();
+  const calls: string[] = [];
+  const fetcher = async (url: string) => {
+    calls.push(url);
+    if (fail) return { ok: false, status: 429, json: async () => ({ error: "Too many requests" }) };
+    const [, action, ns, key] = new URL(url).pathname.split("/");
+    const id = `${ns}/${key}`;
+    if (action === "hit") values.set(id, (values.get(id) ?? 0) + 1);
+    if (!values.has(id)) return { ok: false, status: 404, json: async () => ({ error: "Key not found" }) };
+    return { ok: true, status: 200, json: async () => ({ value: values.get(id) }) };
+  };
+  return { fetcher, calls, values };
+}
+
+test("counter urls use the shared namespace and a Seoul-day key", () => {
+  assert.equal(counterUrl("hit", "total"), `https://abacus.jasoncameron.dev/hit/${COUNTER_NAMESPACE}/total`);
+  assert.equal(dayKey("2026-09-27"), "day-2026-09-27");
+  assert.match(COUNTER_NAMESPACE, /^[A-Za-z0-9_.-]{3,64}$/);
 });
 
-test("recordVisit persists counts", () => {
+test("recordVisit counts a browser once per Seoul day and shares numbers across browsers", async () => {
+  const counter = fakeCounter();
+  const alice = createMemoryStorage();
+  const bob = createMemoryStorage();
+  const day1 = new Date("2026-09-27T03:00:00Z");
+  const day2 = new Date("2026-09-27T15:30:00Z"); // 서울 기준 9월 28일
+
+  assert.deepEqual(await recordVisit(alice, counter.fetcher, day1), { total: 1, today: 1 });
+  assert.deepEqual(await recordVisit(alice, counter.fetcher, day1), { total: 1, today: 1 }, "refresh does not count");
+  assert.deepEqual(await recordVisit(bob, counter.fetcher, day1), { total: 2, today: 2 }, "another visitor is added");
+  assert.equal(readJson(alice, VISIT_KEY, ""), "2026-09-27");
+  assert.equal(shouldCount(alice, "2026-09-27"), false);
+
+  assert.deepEqual(await recordVisit(alice, counter.fetcher, day2), { total: 3, today: 1 }, "today restarts on a new day");
+  assert.deepEqual(await recordVisit(bob, counter.fetcher, day2), { total: 4, today: 2 });
+});
+
+test("recordVisit reads a missing today counter as 0 and rejects on service errors", async () => {
+  const counter = fakeCounter();
   const storage = createMemoryStorage();
   const now = new Date("2026-09-27T03:00:00Z");
-  assert.deepEqual(recordVisit(storage, now), { total: 1, today: 1 });
-  assert.deepEqual(recordVisit(storage, now), { total: 2, today: 2 });
-  assert.equal(readJson<{ day: string }>(storage, VISIT_KEY, { day: "" }).day, "2026-09-27");
+  counter.values.set(`${COUNTER_NAMESPACE}/total`, 10);
+  storage.setItem(VISIT_KEY, JSON.stringify("2026-09-27"));
+  assert.deepEqual(await recordVisit(storage, counter.fetcher, now), { total: 10, today: 0 });
+  assert.ok(counter.calls.every(url => url.includes("/get/")), "already counted today: read only");
+
+  const down = fakeCounter(true);
+  const fresh = createMemoryStorage();
+  await assert.rejects(recordVisit(fresh, down.fetcher, now));
+  assert.equal(shouldCount(fresh, "2026-09-27"), true, "a failed visit is retried next time");
 });
 
 test("seoulDay uses Asia/Seoul regardless of the machine time zone", () => {
