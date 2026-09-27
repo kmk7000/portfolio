@@ -15,7 +15,7 @@ const spiralProps = {
   worldWidth: 0,
   worldHeight: 0,
   density: 0.5,
-  colorBack: theme.cream,
+  colorBack: theme.spiralBack,
   colorFront: theme.spiralFront,
   distortion: 0,
   strokeWidth: 0.5,
@@ -30,9 +30,13 @@ const spiralProps = {
 } satisfies Partial<SpiralProps>;
 
 const introStyle = {
-  "--cream": theme.cream,
-  "--ink": theme.ink,
-  "--brown": theme.brown,
+  "--intro-back": theme.spiralBack,
+  "--intro-front": theme.spiralFront,
+  "--intro-text": theme.text,
+  "--intro-stroke": theme.textStroke,
+  "--intro-glow": theme.glow,
+  "--intro-button-back": theme.buttonBack,
+  "--intro-button-text": theme.buttonText,
   "--display": theme.displayFont,
   "--body": theme.bodyFont
 } as CSSProperties;

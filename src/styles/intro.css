@@ -7,7 +7,7 @@
   place-items: center;
   padding: 1.5rem;
   overflow: hidden;
-  background: var(--cream);
+  background: var(--intro-back);
 }
 
 .lt-intro::before {
@@ -16,8 +16,8 @@
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(circle at 50% 45%, rgba(244,247,244,0.06), rgba(10,5,18,0.08) 38%, rgba(10,5,18,0.22) 100%),
-    linear-gradient(180deg, rgba(10,5,18,0.1), rgba(10,5,18,0.02) 46%, rgba(10,5,18,0.18));
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,0.08), rgba(10,10,92,0.04) 38%, rgba(10,10,92,0.16) 100%),
+    linear-gradient(180deg, rgba(10,10,92,0.06), rgba(10,10,92,0) 46%, rgba(10,10,92,0.12));
 }
 
 .lt-intro-spiral {
@@ -49,29 +49,29 @@
   font-size: clamp(2.1rem, 8vw, 4.4rem);
   font-weight: 800;
   line-height: 1.05;
-  color: var(--ink);
-  /* 테두리를 글자 뒤에 그려 윈도우에서도 겹쳐 보이지 않게 합니다. */
+  color: var(--intro-text);
+  /* 테두리를 글자 뒤에 그려 윈도우에서도 겹쳐 보이지 않게 합니다.
+     흰 무늬 위에서는 남색 테두리가, 파란 무늬 위에서는 흰 글자가 읽히게 합니다. */
   paint-order: stroke fill;
-  -webkit-text-stroke: 3px #2D0B4E;
+  -webkit-text-stroke: 4px var(--intro-stroke);
   text-shadow:
-    0 0 16px rgba(255,255,255,0.95),
-    0 0 36px rgba(255,255,255,0.7),
-    0 0 60px rgba(177,78,255,0.55);
+    0 3px 0 var(--intro-stroke),
+    0 0 18px rgba(var(--intro-glow), 0.6),
+    0 0 44px rgba(var(--intro-glow), 0.4);
 }
 
 .lt-intro-copy {
   max-width: 45rem;
   margin: 1rem auto 0;
-  color: var(--ink);
+  color: var(--intro-text);
   font-size: clamp(1.08rem, 2.2vw, 1.6rem);
   font-weight: 800;
   line-height: 1.48;
   paint-order: stroke fill;
-  -webkit-text-stroke: 2px #2D0B4E;
+  -webkit-text-stroke: 3px var(--intro-stroke);
   text-shadow:
-    0 0 10px rgba(255,255,255,0.95),
-    0 0 24px rgba(255,255,255,0.65),
-    0 0 42px rgba(177,78,255,0.5);
+    0 2px 0 var(--intro-stroke),
+    0 0 14px rgba(var(--intro-glow), 0.5);
 }
 
 .lt-intro-cta {
@@ -82,24 +82,32 @@
   min-height: 52px;
   margin-top: 1.15rem;
   padding: 0 1.45rem;
-  border: 3px solid var(--cream);
+  border: 3px solid var(--intro-button-text);
   border-radius: 999px;
-  background: var(--brown);
-  color: var(--cream);
+  background: var(--intro-button-back);
+  color: var(--intro-button-text);
   cursor: pointer;
   font-family: var(--body);
   font-size: 1rem;
   font-weight: 900;
-  box-shadow: 0 16px 32px -14px rgba(255,214,10,0.55), 0 0 0 5px rgba(177,78,255,0.28);
+  box-shadow: 0 16px 32px -14px rgba(11,27,77,0.55), 0 0 0 5px rgba(255,255,255,0.55);
 }
 
-/* 누르는 동안 살짝 눌린 느낌, 키보드 초점은 보라 배경 위에서도 보이게 밝은 테두리 */
+/* 누르는 동안 살짝 눌린 느낌. 마우스를 올리면 파랑·흰색이 뒤집히고,
+   키보드 초점은 흰·파란 무늬 어디서나 보이게 남색 테두리로 둡니다. */
+.lt-intro-cta:hover {
+  background: var(--intro-button-text);
+  color: var(--intro-button-back);
+  border-color: var(--intro-button-back);
+}
+
 .lt-intro-cta:active {
   transform: translateY(1px);
 }
 
 .lt-intro-cta:focus-visible {
-  outline: 3px solid var(--ink);
+  outline: 3px solid var(--intro-stroke);
+  box-shadow: 0 0 0 7px #FFFFFF;
   outline-offset: 4px;
 }
 
