@@ -25,6 +25,11 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const found = bgmTracks.findIndex(t => t.id === currentId);
   const index = found >= 0 ? found : 0;
+  /* 화면에 "지금 곡" 으로 보이는 곡입니다. 재생은 늘 이 곡을 틉니다.
+     (플레이어는 목록이 도착하기 전에 코드의 첫 곡으로 만들어지므로, 저장된 순서가 도착하거나
+     주인장이 순서를 바꾸면 플레이어에 올라간 곡과 달라질 수 있습니다) */
+  const currentRef = useRef(bgmTracks[index]);
+  currentRef.current = bgmTracks[index];
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(DEFAULT_VOLUME);
@@ -42,8 +47,21 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
   const blockTimerRef = useRef<number | null>(null);
   /* 지금 플레이어에 올라가 있는 영상입니다. 같은 영상 안의 곡이면 다시 불러오지 않고 위치만 옮깁니다. */
   const loadedVideoRef = useRef(bgmTracks[0]?.videoId ?? "");
-  /* 플레이어가 준비되기 전에 고른 곡입니다. 준비되는 순간 그 곡을 올립니다. */
-  const pendingRef = useRef<{ videoId: string; startAt?: number } | null>(null);
+
+  /* 플레이어에 올라간 영상이 "지금 곡" 과 다르면 지금 곡으로 바꿔 끼우고, 같으면 그대로 둡니다.
+     play 가 true 면 재생까지, false 면 올려만 둡니다(소리 없이 준비). */
+  function syncToCurrent(player: YouTubePlayer, play: boolean) {
+    const track = currentRef.current;
+    if (!track) return;
+    if (track.videoId !== loadedVideoRef.current) {
+      loadedVideoRef.current = track.videoId;
+      const target = { videoId: track.videoId, startSeconds: track.startAt ?? 0 };
+      if (play) player.loadVideoById(target);
+      else player.cueVideoById(target);
+    } else if (play) {
+      player.playVideo();
+    }
+  }
 
   const stopWatching = () => {
     if (blockTimerRef.current !== null) window.clearInterval(blockTimerRef.current);
@@ -82,17 +100,14 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
               /* 준비가 끝난 뒤에만 바깥에서 쓰게 넘겨 둡니다. onReady 전에는 playVideo 같은
                  함수가 아직 붙어 있지 않아서, 그 사이에 누르면 오류가 납니다. */
               playerRef.current = player;
-              const pending = pendingRef.current;
-              pendingRef.current = null;
-              if (pending && pending.videoId !== loadedVideoRef.current) {
-                loadedVideoRef.current = pending.videoId;
-                const target = { videoId: pending.videoId, startSeconds: pending.startAt ?? 0 };
-                if (wantsPlayRef.current) player.loadVideoById(target);
-                else player.cueVideoById(target);
-              } else if (wantsPlayRef.current) player.playVideo();
+              /* 준비 전에 곡을 골랐거나 저장된 순서가 먼저 도착했으면 그 곡으로 맞춥니다. */
+              syncToCurrent(player, wantsPlayRef.current);
             },
             onStateChange: event => {
               if (event.data === PLAYER_STATE.playing) {
+                /* 재생이 시작된 곡을 id 로 붙잡아 둡니다. 그 뒤 순서를 바꿔도 표시가 이 곡에 남습니다. */
+                const playingId = currentRef.current?.id ?? null;
+                setCurrentId(current => current ?? playingId);
                 setPlaying(true);
                 setBlocked(false);
               } else if (event.data === PLAYER_STATE.paused) {
@@ -127,12 +142,25 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
     };
   }, [hasTracks]);
 
+  /* 멈춰 있을 때 목록이 바뀌어(저장된 순서 도착, 순서 변경) 지금 곡이 달라지면 미리 올려 둡니다.
+     재생 중이면 듣던 곡을 끊지 않습니다. 다음에 재생을 누르면 syncToCurrent 가 맞춥니다. */
+  const currentVideo = bgmTracks[index]?.videoId;
+  const currentStart = bgmTracks[index]?.startAt;
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || playing || !currentVideo) return;
+    if (currentVideo !== loadedVideoRef.current) syncToCurrent(player, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentVideo, currentStart, playing]);
+
   /* 한 영상 안에 여러 곡이 들어 있는 경우, 재생이 흘러가는 대로 현재 곡 표시를 옮깁니다. */
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(() => {
       const player = playerRef.current;
       if (!player) return;
+      /* 같은 영상 안에서 곡이 넘어갈 때만 표시를 옮깁니다. 다른 영상의 곡으로는 옮기지 않습니다. */
+      if (currentRef.current?.videoId !== loadedVideoRef.current) return;
       const at = trackIndexAt(tracksRef.current, loadedVideoRef.current, player.getCurrentTime());
       const id = at >= 0 ? tracksRef.current[at].id : null;
       if (id) setCurrentId(current => (current === id ? current : id));
@@ -159,7 +187,8 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
 
   const start = useCallback(() => {
     wantsPlayRef.current = true;
-    playerRef.current?.playVideo();
+    const player = playerRef.current;
+    if (player) syncToCurrent(player, true);
     watchForBlock();
   }, [watchForBlock]);
 
@@ -181,7 +210,7 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
     } else {
       setBlocked(false);
       wantsPlayRef.current = true;
-      player.playVideo();
+      syncToCurrent(player, true);
       watchForBlock();
     }
   };
@@ -194,8 +223,7 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
 
     const player = playerRef.current;
     if (!player) {
-      /* 아직 준비 전입니다. 준비되면 이 곡을 올리고, 누른 것이므로 재생까지 합니다. */
-      pendingRef.current = { videoId: track.videoId, startAt: track.startAt };
+      /* 아직 준비 전입니다. 준비되면 onReady 가 이 곡을 올리고, 누른 것이므로 재생까지 합니다. */
       wantsPlayRef.current = true;
       return;
     }
