@@ -346,7 +346,10 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
       <button
         type="button"
         className={
-          "cy-miniroom-character" + (walking ? " is-walking" : "") + (draggingChar ? " is-dragging" : "")
+          "cy-miniroom-character" +
+          (walking ? " is-walking" : "") +
+          (draggingChar ? " is-dragging" : "") +
+          (mode.float ? " is-floating" : "")
         }
         onPointerDown={onCharPointerDown}
         onPointerMove={onCharPointerMove}
@@ -372,6 +375,7 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
             {displayBubble}
           </span>
         ) : null}
+        {mode.float ? <span className="cy-char-shadow" aria-hidden="true" /> : null}
         <img src={asset(mode.src)} alt={`미니미 - ${mode.label}`} draggable={false} />
       </button>
 

@@ -215,3 +215,36 @@
 @media (prefers-reduced-motion: reduce) {
   .cy-miniroom-stage .cy-miniroom-character.is-walking img { animation: none; }
 }
+
+/* 떠다니는 포즈: 바닥 그림자는 제자리, 그림만 살짝 떠서 둥실둥실 */
+.cy-miniroom-stage .cy-miniroom-character .cy-char-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -2%;
+  width: 62%;
+  height: 9%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(90, 110, 255, 0.55), rgba(40, 20, 90, 0));
+  animation: cy-float-shadow 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.cy-miniroom-stage .cy-miniroom-character.is-floating img {
+  animation: cy-float 2.4s ease-in-out infinite;
+}
+/* 떠다니는 포즈는 걸을 때도 통통 튀지 않고 미끄러지듯 둥실 */
+.cy-miniroom-stage .cy-miniroom-character.is-floating.is-walking img {
+  animation: cy-float 1.2s ease-in-out infinite;
+}
+@keyframes cy-float {
+  0%, 100% { transform: translateY(-7%); }
+  50% { transform: translateY(-13%); }
+}
+@keyframes cy-float-shadow {
+  0%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.55; transform: translateX(-50%) scale(0.82); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cy-miniroom-stage .cy-miniroom-character.is-floating img { animation: none; transform: translateY(-9%); }
+  .cy-miniroom-stage .cy-miniroom-character .cy-char-shadow { animation: none; }
+}

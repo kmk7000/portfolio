@@ -10,6 +10,9 @@ export type CharacterMode = {
   src: string;
   /* 서 있는 포즈 높이를 1 로 봤을 때 이 그림의 높이 */
   scale: number;
+  /* 책상·의자·서버가 함께 그려진 포즈는 바닥에서 살짝 떠서 둥실둥실 움직입니다.
+     (원본의 "부유" 포즈처럼, 가구째 들고 다니는 게 어색하지 않게) */
+  float?: boolean;
   lines: string[];
 };
 
@@ -36,6 +39,7 @@ export const characterModes: CharacterMode[] = [
     label: "코딩",
     src: `${SRC}/minime-coding.png`,
     scale: 0.883,
+    float: true,
     lines: ["타닥타닥… 기능 만드는 중 ⌨️", "git commit -m \"오늘도 한 걸음\"", "AI랑 페어 프로그래밍 중!", "이 줄만 고치면 끝… 아마도?"]
   },
   {
@@ -43,6 +47,7 @@ export const characterModes: CharacterMode[] = [
     label: "노트북",
     src: `${SRC}/minime-laptop.png`,
     scale: 0.868,
+    float: true,
     lines: ["바닥에 앉아서 한 줄 더 🧑‍💻", "아이디어 떠오르면 바로 메모!", "프롬프트 다듬는 중…", "편한 자세가 최고의 개발 환경"]
   },
   {
@@ -50,6 +55,7 @@ export const characterModes: CharacterMode[] = [
     label: "집중",
     src: `${SRC}/minime-focus.png`,
     scale: 0.883,
+    float: true,
     lines: ["모니터 두 개 = 생산성 두 배!", "왼쪽엔 코드, 오른쪽엔 AI", "지금은 말 걸면 안 돼요… 🤫", "문서 읽는 중… 조금만요!"]
   },
   {
@@ -57,6 +63,7 @@ export const characterModes: CharacterMode[] = [
     label: "디버깅",
     src: `${SRC}/minime-debugging.png`,
     scale: 0.761,
+    float: true,
     lines: ["어… 이게 왜 되지? 🤔", "버그 발견! 🐛 잡으러 갑니다", "로그를 한 줄씩 따라가는 중…", "재현 먼저, 수정은 그다음!"]
   },
   {
@@ -64,6 +71,7 @@ export const characterModes: CharacterMode[] = [
     label: "커피",
     src: `${SRC}/minime-coffee.png`,
     scale: 0.82,
+    float: true,
     lines: ["빌드 기다리는 중… ☕", "커피 한 잔 = 버그 하나 해결", "npm install 끝날 때까지 한 모금", "잠깐 쉬면서 아이디어 충전!"]
   },
   {
@@ -71,6 +79,7 @@ export const characterModes: CharacterMode[] = [
     label: "배포",
     src: `${SRC}/minime-deploy.png`,
     scale: 0.857,
+    float: true,
     lines: ["서버 상태 확인 중… 🖥️", "배포 출발! 🚀", "git push 완료, 이제 기다리기만…", "로그 이상 없음, 운영 서버 정상!"]
   },
   {
@@ -78,6 +87,7 @@ export const characterModes: CharacterMode[] = [
     label: "휴식",
     src: `${SRC}/minime-relax.png`,
     scale: 0.809,
+    float: true,
     lines: ["테스트 전부 통과! ✅ 이제 쉬어요", "배포 끝~ 기지개 한 번 🙆", "초록불 보면서 휴식 중 😌", "프로젝트 탭도 구경해 보세요!"]
   }
 ];
