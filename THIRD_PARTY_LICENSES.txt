@@ -1,0 +1,49 @@
+THIRD-PARTY NOTICES
+===================
+
+This project reproduces the design, styles, component logic and image assets of
+"mini-homepage" (https://github.com/N-lifescience/mini-homepage, a fork of
+https://github.com/Pcallpang/meyo-lab). The 낙서장(Oekaki) drawing board in that
+project was itself taken from https://github.com/progh2/mini-homepage.
+All of these are published under the MIT License reproduced below.
+
+Files derived from those projects:
+  - public/assets/**            (mini room background, page background,
+                                 furniture and character images; except
+                                 public/assets/profile.png and
+                                 public/assets/projects/**, which are the site
+                                 owner's own images, not from those projects)
+  - src/styles/**               (ported from src/app/globals.css)
+  - src/components/**, src/lib/**, src/config/**  (ported and adapted)
+
+--------------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2026 shinnanchanguk
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+--------------------------------------------------------------------------------
+
+Runtime dependency with its own license (shipped inside node_modules):
+  - @paper-design/shaders-react / @paper-design/shaders 0.0.77 — Apache-2.0
+    (intro screen spiral shader)
+
+Loaded at runtime from third-party servers (not redistributed here):
+  - Pretendard font (SIL Open Font License 1.1) via cdn.jsdelivr.net
+  - YouTube IFrame Player API for the BGM player

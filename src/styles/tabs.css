@@ -1,0 +1,106 @@
+/* ------------------------------------- */
+/* TABS                                  */
+/* ------------------------------------- */
+.cy-tabs {
+  position: absolute;
+  right: -62px; /* 책 바깥으로 튀어나옴 */
+  top: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cy-tab-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cy-tab-btn {
+  background: #8B5CF6; /* 기본 탭 보라색 */
+  color: white;
+  border: 1px solid #6B3FA0;
+  border-left: none; /* 책에 붙은 느낌 */
+  border-radius: 0 6px 6px 0;
+  padding: 6px 4px;
+  width: 62px;
+  min-height: 40px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  font-family: "Dotum", sans-serif;
+  cursor: pointer;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.2s, background 0.2s;
+}
+
+.cy-tab-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.cy-tab-btn:hover {
+  width: 68px;
+  background: #F5B700;
+}
+
+.cy-tab-btn.active {
+  background: white;
+  color: #333;
+  border-color: #8B5CF6;
+  width: 72px;
+  font-weight: bold;
+  z-index: 10;
+}
+
+/* 탭은 어두운 배경 위로 튀어나와 있어 초점 표시를 노란색으로 둡니다. */
+.cy-tab-btn:focus-visible {
+  outline: 2px solid #FFD60A;
+  outline-offset: 2px;
+}
+
+.cy-tab-btn:active:not(.active) {
+  background: #E0A800;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cy-tab-btn { transition: none; }
+}
+
+/* 태블릿·모바일: 탭을 우측패널 위 가로 줄로 */
+@media (max-width: 900px) {
+  .cy-tabs {
+    position: static;
+    right: auto;
+    top: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 10px 12px 0;
+  }
+
+  .cy-tab-btn,
+  .cy-tab-btn:hover,
+  .cy-tab-btn.active {
+    width: auto;
+  }
+
+  .cy-tab-btn {
+    flex: 1 1 auto;
+    min-width: 58px;
+    min-height: 34px;
+    padding: 6px 8px;
+    border: 1px solid #6B3FA0;
+    border-radius: 6px 6px 0 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .cy-tab-btn {
+    font-size: 0.68rem;
+    min-width: 52px;
+  }
+}

@@ -1,0 +1,7 @@
+node_modules
+dist
+*.local
+.DS_Store
+*.log
+# 프로필 원본 그림(1.8MB). 사이트에는 public/assets/profile.png 만 씁니다.
+design/

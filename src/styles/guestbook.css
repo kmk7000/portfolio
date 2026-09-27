@@ -1,0 +1,169 @@
+/* 일촌평 (방명록) */
+.cy-guestbook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+.cy-guestbook-item {
+  border-bottom: 1px dashed #eee;
+  padding-bottom: 5px;
+}
+.cg-author { font-weight: bold; color: #2F4A38; }
+.cg-colon { color: #888; margin: 0 4px; }
+.cg-text { color: #444; }
+.cg-date { font-family: "Tahoma"; font-size: 0.65rem; color: #999; margin-left: 5px; }
+.cg-delete {
+  font-family: inherit;
+  font-size: 0.65rem;
+  color: #999;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 6px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.cg-delete:hover:not(:disabled) { color: #c0392b; }
+.cg-delete:disabled { opacity: 0.5; cursor: default; }
+
+/* 방명록·낙서장 페이지 번호 */
+.cy-gb-pagination {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.cy-gb-page {
+  font-family: inherit;
+  font-size: 0.72rem;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: #fff;
+  color: #888;
+  cursor: pointer;
+}
+
+.cy-gb-page:hover {
+  border-color: #8B5CF6;
+  color: #5B2C8C;
+}
+
+.cy-gb-page.is-active {
+  background: #8B5CF6;
+  border-color: #6B3FA0;
+  color: #fff;
+}
+
+/* 안내 한 줄 (비어 있음, 불러오는 중) */
+.cy-gb-loading {
+  font-size: 0.75rem;
+  color: #999;
+  padding: 4px 0;
+}
+
+/* 방명록 입력 폼 */
+.cy-guestbook-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.cy-gb-author,
+.cy-gb-text {
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 5px 7px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  color: #444;
+  background: #fff;
+}
+
+.cy-gb-author {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.cy-gb-text {
+  flex: 1;
+  min-width: 120px;
+}
+
+.cy-gb-author:focus,
+.cy-gb-text:focus {
+  outline: none;
+  border-color: #8B5CF6;
+}
+
+.cy-gb-submit {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 5px 12px;
+  border: 1px solid #6B3FA0;
+  border-radius: 3px;
+  background: #8B5CF6;
+  color: #fff;
+  cursor: pointer;
+}
+
+.cy-gb-submit:hover:not(:disabled) {
+  background: #F5B700;
+}
+
+.cy-gb-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.cy-gb-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 전송 결과 안내. 폼 아래 한 줄을 차지합니다. */
+.cy-gb-message {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  color: #5B2C8C;
+}
+
+.cy-gb-message.is-error {
+  color: #c0392b;
+}
+
+/* 방명록 댓글 */
+.cy-reply-thread { margin: 3px 0 2px 12px; }
+.cy-reply-toggle {
+  font-family: "Dotum", "Gulim", sans-serif;
+  font-size: 11px;
+  color: #888;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.cy-reply-toggle:hover { color: #ff6600; }
+.cy-reply-body {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: #fafafa;
+  border-left: 2px solid #eee;
+}
+.cy-reply-item { font-size: 0.74rem; line-height: 1.6; color: #444; }
+.cy-reply-author { font-weight: bold; color: #555; margin-right: 4px; }
+.cy-reply-author::after { content: " :"; color: #bbb; }
+.cy-reply-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.cy-reply-form .cy-gb-author { width: 70px; }
+.cy-reply-form .cy-gb-text { min-width: 100px; }

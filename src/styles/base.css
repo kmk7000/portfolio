@@ -1,0 +1,35 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  font-family: "Pretendard", "Dotum", "Gulim", sans-serif;
+  color: #333;
+}
+
+/* 진입 화면이 떠 있는 동안에는 뒤에 깔린 미니홈피가 스크롤되지 않게 막습니다. */
+body.lt-intro-open {
+  overflow: hidden;
+}
+
+/* 키보드로 이동할 때만 보이는 초점 표시입니다. 마우스로 누를 때는 원본과 똑같이 보입니다.
+   밝은 다이어리 면 위에서는 사이트 강조색(주황)을 씁니다. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #ff6600;
+  outline-offset: 2px;
+}
+
+/* 화면에는 안 보이고 화면 낭독기만 읽는 글자입니다. */
+.cy-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

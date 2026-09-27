@@ -1,0 +1,193 @@
+/* 미니룸 박스 */
+.cy-miniroom-inner {
+  background: #f4f7f4; /* 옅은 민트색 배경 */
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.cy-miniroom-inner img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 미니룸 무대: 배경 그림(1376x768)과 같은 비율로 폭에 맞춰 늘고 줄어듭니다.
+   가구와 캐릭터는 이 안에서 % 좌표로 놓입니다. */
+.cy-miniroom-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1376 / 768;
+  overflow: hidden;
+}
+.cy-miniroom-stage .cy-miniroom-bg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cy-miniroom-stage .cy-miniroom-furniture-wrap {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  width: auto;
+  pointer-events: none;
+  z-index: 2;
+  user-select: none;
+}
+.cy-miniroom-stage .cy-miniroom-furniture-wrap.is-editable {
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+.cy-miniroom-stage .cy-miniroom-furniture {
+  display: block;
+  height: 100%;
+  width: auto;
+  filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.45));
+}
+
+/* 편집모드(?edit=1) 좌표 표시 */
+.cy-edit-tag {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(10, 5, 18, 0.9);
+  color: #7CF7C4;
+  font-size: 0.6rem;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(124, 247, 196, 0.4);
+  white-space: nowrap;
+  z-index: 6;
+}
+.cy-edit-tag button {
+  background: rgba(255, 214, 10, 0.15);
+  border: 1px solid rgba(255, 214, 10, 0.5);
+  color: #FFD60A;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+.cy-miniroom-character-tag {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  background: rgba(10, 5, 18, 0.9);
+  color: #B14EFF;
+  font-size: 0.6rem;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(177, 78, 255, 0.5);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 6;
+}
+.cy-miniroom-edit-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(10, 5, 18, 0.85);
+  color: #F3EAFF;
+  font-size: 0.65rem;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 214, 10, 0.4);
+  cursor: pointer;
+  z-index: 7;
+}
+
+.cy-miniroom-hint {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 5, 18, 0.85);
+  color: #FFD60A;
+  font-size: 0.68rem;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 214, 10, 0.4);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  animation: cy-hint-in 0.15s ease-out;
+}
+@keyframes cy-hint-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* 미니룸 캐릭터: 방향키로 움직이고 클릭하면 모드가 바뀝니다 */
+.cy-miniroom-stage .cy-miniroom-character {
+  position: absolute;
+  height: 21.6%;
+  min-height: 41px;
+  max-height: 86px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: left 0.12s linear, top 0.12s linear;
+  z-index: 4;
+}
+.cy-miniroom-stage .cy-miniroom-character:focus-visible img {
+  outline: 2px solid rgba(255, 214, 10, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.cy-miniroom-stage .cy-miniroom-character img {
+  display: block;
+  height: 100%;
+  width: auto;
+  filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.5));
+}
+.cy-character-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  background: #F3EAFF;
+  color: #241242;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.cy-character-bubble.is-hint {
+  background: #FFD60A;
+  color: #2D0B4E;
+}
+.cy-character-bubble.is-hint::after {
+  border-top-color: #FFD60A;
+}
+.cy-character-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #F3EAFF;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cy-miniroom-stage .cy-miniroom-character { transition: none; }
+  .cy-miniroom-hint { animation: none; }
+}

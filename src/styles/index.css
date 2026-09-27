@@ -1,0 +1,16 @@
+/* 스타일은 원본 src/app/globals.css(MIT)의 값을 그대로 옮겨 영역별로 나눴습니다.
+   같은 선택자는 한 파일에만 두고, 반응형 규칙은 그 선택자가 있는 파일 끝에 둡니다. */
+@import "./base.css";
+@import "./intro.css";
+@import "./layout.css";
+@import "./left-panel.css";
+@import "./bgm.css";
+@import "./right-panel.css";
+@import "./miniroom.css";
+@import "./guestbook.css";
+@import "./board.css";
+@import "./projects.css";
+@import "./blocks.css";
+@import "./viewer.css";
+@import "./tabs.css";
+@import "./oekaki.css";

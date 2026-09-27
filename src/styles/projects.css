@@ -1,0 +1,185 @@
+/* 프로젝트 탭: 목록은 게시판(board.css) 모양을 그대로 쓰고, 작은 그림과 상태 딱지만 더합니다. */
+.cy-project-list .cy-board-head {
+  flex-wrap: wrap;
+}
+.cy-project-thumb {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid #ddd;
+  background: #f6f4fa;
+  font-size: 0.65rem;
+  color: #666;
+}
+.cy-project-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+.cy-board-link:hover .cy-project-thumb,
+.cy-board-link:focus-visible .cy-project-thumb {
+  border-color: #ff6600;
+}
+
+/* 상태 딱지: 글자와 바탕의 명암비를 4.5:1 이상으로 맞췄습니다. */
+.cy-project-status {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+.cy-project-status.is-live { color: #fff; background: #2F7A4F; }
+.cy-project-status.is-dev { color: #333; background: #F5B700; }
+
+/* 상세 */
+.cy-project {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: #444;
+}
+.cy-project-back {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  color: #666;
+  text-decoration: none;
+}
+.cy-project-back:hover,
+.cy-project-back:focus-visible {
+  color: #ff6600;
+  text-decoration: underline;
+}
+.cy-project-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cy-project-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #333;
+}
+.cy-project-summary {
+  margin: 0;
+  line-height: 1.6;
+  color: #555;
+  word-break: keep-all;
+}
+
+.cy-project-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cy-project-links a {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  color: #5B2C8C;
+  text-decoration: none;
+  background: #f6f0ff;
+  border: 1px solid #d9c8f5;
+  border-radius: 12px;
+}
+.cy-project-links a:hover,
+.cy-project-links a:focus-visible {
+  color: #fff;
+  background: #c2410c;
+  border-color: #c2410c;
+}
+
+/* 개요 표 (기간, 역할, 기술 ...) */
+.cy-project-facts {
+  margin: 0;
+  border-top: 1px solid #eee;
+}
+.cy-project-facts > div {
+  display: grid;
+  grid-template-columns: 6.2em 1fr;
+  border-bottom: 1px solid #eee;
+}
+.cy-project-facts dt,
+.cy-project-facts dd {
+  margin: 0;
+  padding: 5px 8px;
+  line-height: 1.5;
+}
+.cy-project-facts dt {
+  font-size: 0.72rem;
+  font-weight: bold;
+  color: #2F4A38;
+  background: #fafafa;
+}
+.cy-project-facts dd {
+  word-break: keep-all;
+}
+
+.cy-project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cy-project-tags li {
+  font-size: 0.68rem;
+  color: #666;
+  background: #f3f3f3;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+/* 스크린샷 격자 */
+.cy-project-shots {
+  display: flex;
+  flex-direction: column;
+}
+.cy-project-shot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cy-project-shot-grid img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top;
+  padding: 3px;
+  background: #fff;
+  border: 1px solid #ddd;
+}
+.cy-project-shot-grid .cy-photo-cover:hover img,
+.cy-project-shot-grid .cy-photo-cover:focus-visible img {
+  border-color: #ff6600;
+}
+.cy-project-shot-caption {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: #666;
+  text-align: center;
+  word-break: keep-all;
+}
+
+@media (max-width: 480px) {
+  .cy-project-thumb { width: 64px; }
+  .cy-project-shot-grid { grid-template-columns: repeat(2, 1fr); }
+  .cy-project-facts > div { grid-template-columns: 1fr; }
+  .cy-project-facts dd { padding-top: 2px; }
+}

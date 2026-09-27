@@ -1,0 +1,123 @@
+/* ------------------------------------- */
+/* LEFT PANEL                            */
+/* ------------------------------------- */
+.cy-left-panel {
+  width: 260px;
+  height: 100%;
+  padding: 15px;
+  border-right: 1px solid #ddd; /* 접히는 선 */
+  background: #fcfcfc;
+  border-radius: 8px 0 0 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cy-left-header {
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.cy-today-count {
+  font-family: "Tahoma", sans-serif;
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.text-orange { color: #ff6600; font-weight: bold; }
+.text-black { color: #333; font-weight: bold; }
+
+.cy-left-content {
+  flex: 1;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cy-today-is {
+  width: 100%;
+  color: #555;
+  font-size: 0.75rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+  margin-bottom: 15px;
+}
+
+.cy-profile-pic {
+  width: 150px;
+  height: 150px;
+  margin-bottom: 15px;
+}
+.cy-profile-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+  background: #f4f7f4;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.cy-intro-text {
+  width: 100%;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #444;
+  margin-bottom: 20px;
+  flex: 1; /* 가변 공간 차지 */
+  overflow-y: auto;
+}
+
+.cy-profile-name {
+  width: 100%;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  margin-bottom: 10px;
+}
+.name-bold { font-weight: bold; font-size: 0.9rem; color: #222; }
+.title-sub { font-size: 0.7rem; color: #666; margin-top: 3px; }
+
+.cy-left-dropdown {
+  width: 100%;
+}
+.cy-left-dropdown select {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 3px;
+  border: 1px solid #ccc;
+  color: #555;
+}
+.cy-left-dropdown select:focus-visible {
+  outline-offset: 1px;
+}
+
+@media (max-width: 900px) {
+  .cy-left-panel {
+    width: 100%;
+    height: auto;
+    padding: 12px;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .cy-left-content {
+    padding: 12px;
+  }
+
+  .cy-profile-pic {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 12px;
+  }
+
+  /* 데스크톱에서는 남는 높이를 채우며 자체 스크롤했지만, 모바일에서는 글 길이만큼 늘어납니다. */
+  .cy-intro-text {
+    flex: 0 0 auto;
+    overflow: visible;
+    margin-bottom: 12px;
+  }
+}

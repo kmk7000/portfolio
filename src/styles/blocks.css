@@ -1,0 +1,116 @@
+/* 보기 전환 (목록 | 앨범 | 연도별) */
+.cy-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: "Dotum", "Gulim", sans-serif;
+  font-size: 11px;
+  font-weight: normal;
+  color: #999;
+}
+.cy-view-sep { color: #ccc; margin: 0 3px; }
+.cy-view-btn {
+  font-family: inherit;
+  font-size: 11px;
+  color: #777;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.cy-view-btn:hover { color: #ff6600; }
+.cy-view-btn.is-on { color: #ff6600; font-weight: bold; }
+
+/* 글·사진·링크 블록 */
+.cy-block-article { display: flex; flex-direction: column; gap: 8px; }
+.cy-block-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.cy-block { position: relative; }
+.cy-block-text { font-size: 0.8rem; line-height: 1.65; color: #444; margin: 0; }
+.cy-block-link { font-size: 0.8rem; color: #5B2C8C; }
+.cy-block-link:hover { color: #ff6600; }
+.cy-profile-list-heading {
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #2F4A38;
+  margin: 0 0 6px;
+}
+.cy-block.is-heading:not(:first-child) { margin-top: 8px; }
+
+/* 글머리 목록 */
+.cy-block-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: #444;
+  word-break: keep-all;
+}
+.cy-block-list li + li { margin-top: 3px; }
+
+/* 탭 제목 아래 한 줄 설명 */
+.cy-tab-lead { margin: -4px 0 10px; font-size: 0.72rem; color: #767676; }
+
+/* 사진: 목록 보기에서는 너무 커지지 않게, 앨범/연도별 보기에서는 격자 칸에 맞게 */
+.cy-block-figure { margin: 0; }
+.cy-block-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  padding: 3px;
+  background: #fff;
+}
+.cy-block-article .cy-block.is-image { max-width: 320px; }
+.cy-block-grid .cy-block-figure img {
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+.cy-block-figure figcaption {
+  font-size: 0.7rem;
+  color: #666;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* 사진 여러 장이 들어 있는 글: 목록에는 대표 사진만, 누르면 전부 넘겨 보기 */
+.cy-photo-cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.cy-photo-cover:hover img,
+.cy-photo-cover:focus-visible img { border-color: #ff6600; }
+.cy-photo-count {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  padding: 3px 6px;
+  font-family: "Tahoma", sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* 연도별 묶음 */
+.cy-year-group { margin-bottom: 14px; }
+.cy-year-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.cy-year-label { font-size: 0.85rem; font-weight: bold; color: #ff6600; }
+.cy-year-count { font-family: "Tahoma", sans-serif; font-size: 0.68rem; color: #999; }
