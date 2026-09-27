@@ -141,3 +141,29 @@ test("resolveTab accepts ids and labels and falls back to the first tab", () => 
   assert.equal(resolveTab("nope", tabs).id, "home");
   assert.equal(resolveTab(null, tabs).id, "home");
 });
+
+test("nextTrackAfterEnd follows list order and wraps to the first song", async () => {
+  const { nextTrackAfterEnd } = await import("../src/lib/bgm.ts");
+  const list = [
+    { id: "a", videoId: "AAAAAAAAAAA" },
+    { id: "b", videoId: "BBBBBBBBBBB" },
+    { id: "c", videoId: "CCCCCCCCCCC" }
+  ];
+  assert.equal(nextTrackAfterEnd(list, "a", "AAAAAAAAAAA")?.id, "b");
+  assert.equal(nextTrackAfterEnd(list, "b", "BBBBBBBBBBB")?.id, "c", "2 → 3, not back to 1");
+  assert.equal(nextTrackAfterEnd(list, "c", "CCCCCCCCCCC")?.id, "a", "last → first");
+  assert.equal(nextTrackAfterEnd(list, null, "BBBBBBBBBBB")?.id, "c", "unknown current: use the ended video");
+  assert.equal(nextTrackAfterEnd(list, "gone", "ZZZZZZZZZZZ")?.id, "a");
+  assert.equal(nextTrackAfterEnd([], "a", "AAAAAAAAAAA"), null);
+  assert.equal(nextTrackAfterEnd([list[0]], "a", "AAAAAAAAAAA")?.id, "a", "single song repeats");
+
+  // one long video holding two songs, then another video
+  const multi = [
+    { id: "m1", videoId: "MMMMMMMMMMM", startAt: 0 },
+    { id: "m2", videoId: "MMMMMMMMMMM", startAt: 200 },
+    { id: "x", videoId: "XXXXXXXXXXX" }
+  ];
+  assert.equal(nextTrackAfterEnd(multi, "m2", "MMMMMMMMMMM")?.id, "x");
+  assert.equal(nextTrackAfterEnd(multi, "m1", "MMMMMMMMMMM")?.id, "x", "video ended: skip its later songs");
+  assert.equal(nextTrackAfterEnd(multi, "x", "XXXXXXXXXXX")?.id, "m1");
+});

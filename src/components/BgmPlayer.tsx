@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { clock, trackIndexAt } from "../lib/bgm.ts";
+import { clock, nextTrackAfterEnd, trackIndexAt } from "../lib/bgm.ts";
 import { useSite } from "../lib/site-context.tsx";
 import BgmEditor from "./BgmEditor.tsx";
 import { PLAYER_STATE, loadYouTubeApi, type YouTubePlayer } from "../lib/youtube.ts";
@@ -113,12 +113,19 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
               } else if (event.data === PLAYER_STATE.paused) {
                 setPlaying(false);
               } else if (event.data === PLAYER_STATE.ended) {
-                /* 영상이 끝났습니다. 처음 곡으로 돌아가 다시 틉니다. */
-                const first = tracksRef.current[0];
-                if (!first) return;
-                setCurrentId(first.id);
-                loadedVideoRef.current = first.videoId;
-                playerRef.current?.loadVideoById({ videoId: first.videoId, startSeconds: first.startAt ?? 0 });
+                /* 영상이 끝났습니다. 목록 순서대로 다음 곡을 틀고, 마지막 곡 다음은 첫 곡입니다.
+                   (주인장이 편집 모드에서 바꾼 순서를 따릅니다) */
+                const next = nextTrackAfterEnd(tracksRef.current, currentRef.current?.id ?? null, loadedVideoRef.current);
+                const p = playerRef.current;
+                if (!next || !p) return;
+                setCurrentId(next.id);
+                if (next.videoId === loadedVideoRef.current) {
+                  p.seekTo(next.startAt ?? 0, true);
+                  p.playVideo();
+                } else {
+                  loadedVideoRef.current = next.videoId;
+                  p.loadVideoById({ videoId: next.videoId, startSeconds: next.startAt ?? 0 });
+                }
               }
             },
             onError: event => {

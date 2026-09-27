@@ -32,3 +32,29 @@ export function trackIndexAt(
   });
   return found;
 }
+
+/* 영상이 끝났을 때 틀 다음 곡입니다. 목록 순서대로 가고, 마지막 다음은 첫 곡입니다.
+   - 지금 곡을 모르면(목록이 바뀌어 사라졌으면) 끝난 영상의 마지막 곡을 기준으로 삼습니다.
+   - 한 영상에 여러 곡이 있으면 영상이 끝난 것은 그 영상의 마지막 곡이 끝난 것이므로,
+     같은 영상의 뒤쪽 곡은 건너뛰고 그다음 곡으로 갑니다. */
+export function nextTrackAfterEnd<T extends { id: string; videoId: string }>(
+  tracks: readonly T[],
+  currentId: string | null,
+  endedVideoId: string
+): T | null {
+  if (tracks.length === 0) return null;
+  let i = tracks.findIndex(t => t.id === currentId);
+  if (i < 0 || tracks[i].videoId !== endedVideoId) {
+    i = -1;
+    tracks.forEach((t, j) => {
+      if (t.videoId === endedVideoId) i = j;
+    });
+  }
+  if (i < 0) return tracks[0];
+  for (let step = 1; step <= tracks.length; step++) {
+    const next = tracks[(i + step) % tracks.length];
+    /* 같은 영상의 바로 뒤 곡들은 이미 재생된 것으로 봅니다(한 곡뿐이면 그 곡을 다시 틉니다). */
+    if (next.videoId !== endedVideoId || step === tracks.length || (i + step) % tracks.length <= i) return next;
+  }
+  return tracks[0];
+}
