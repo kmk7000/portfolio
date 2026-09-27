@@ -80,3 +80,37 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   if (el.isContentEditable) return true;
   return Boolean(el.closest("input, textarea, select, [contenteditable='true']"));
 }
+
+/* ------------------------------------------------------------------ */
+/* 마우스·터치로 움직이기                                                */
+/* ------------------------------------------------------------------ */
+
+/* 바닥을 누르면 걸어가는 빠르기입니다. (미니룸 크기 대비 %/초) */
+export const WALK_SPEED = 38;
+/* 누른 채 이만큼(px) 넘게 움직이면 "누르기" 가 아니라 끌기·스크롤로 봅니다. */
+export const TAP_SLOP_PX = 8;
+/* 이보다 오래 누르고 있으면 "누르기" 로 보지 않습니다. (길게 눌러 스크롤하려는 경우) */
+export const TAP_MAX_MS = 700;
+
+/* 지금 자리에서 목표로 maxStep 만큼 다가간 자리입니다. 가까우면 목표에 도착합니다.
+   바닥은 볼록한 삼각형이라, 바닥 위 두 점을 잇는 직선도 바닥 안에 있습니다. */
+export function walkToward(pos: Point, target: Point, maxStep: number): { pos: Point; arrived: boolean } {
+  const dx = target.x - pos.x;
+  const dy = target.y - pos.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist <= maxStep || dist === 0) return { pos: { x: target.x, y: target.y }, arrived: true };
+  const k = maxStep / dist;
+  return { pos: { x: pos.x + dx * k, y: pos.y + dy * k }, arrived: false };
+}
+
+/* 가로로 조금이라도 움직이면 그쪽을 보고, 거의 세로로만 움직이면 보던 방향을 유지합니다. */
+export function facingToward(from: Point, to: Point, current: "left" | "right"): "left" | "right" {
+  const dx = to.x - from.x;
+  if (Math.abs(dx) < 0.5) return current;
+  return dx > 0 ? "right" : "left";
+}
+
+/* 누르고 뗀 사이가 "톡 누르기" 인지 */
+export function isTap(dx: number, dy: number, ms: number): boolean {
+  return Math.hypot(dx, dy) <= TAP_SLOP_PX && ms <= TAP_MAX_MS;
+}

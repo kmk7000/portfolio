@@ -191,3 +191,21 @@
   .cy-miniroom-stage .cy-miniroom-character { transition: none; }
   .cy-miniroom-hint { animation: none; }
 }
+
+/* 마우스·터치로 움직이기
+   - 바닥은 누를 수 있다는 표시만 하고, 쓸어 넘기는 스크롤은 막지 않습니다(touch-action 그대로).
+   - 캐릭터는 끌 수 있어야 하므로 캐릭터 위에서만 브라우저 스크롤·확대를 끕니다. */
+.cy-miniroom-stage.is-walkable { cursor: pointer; }
+.cy-miniroom-stage.is-walkable .cy-miniroom-character { touch-action: none; cursor: grab; }
+.cy-miniroom-stage .cy-miniroom-character.is-walking,
+.cy-miniroom-stage .cy-miniroom-character.is-dragging { transition: none; }
+.cy-miniroom-stage .cy-miniroom-character.is-dragging { cursor: grabbing; z-index: 6; }
+.cy-miniroom-stage .cy-miniroom-character.is-walking img { animation: cy-walk-bob 0.36s ease-in-out infinite; }
+.cy-miniroom-stage .cy-miniroom-character.is-dragging img { transform: translateY(-4px) scale(1.04); }
+@keyframes cy-walk-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cy-miniroom-stage .cy-miniroom-character.is-walking img { animation: none; }
+}

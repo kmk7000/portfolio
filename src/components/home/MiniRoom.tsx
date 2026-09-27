@@ -8,13 +8,23 @@ import { useSite } from "../../lib/site-context.tsx";
 import {
   BUBBLE_DURATION_MS,
   START_POSITION,
+  WALK_SPEED,
+  clampToFloor,
+  facingToward,
   findNearby,
+  isTap,
   isArrowKey,
   isEditableTarget,
   pointToPercent,
   stepCharacter,
+  walkToward,
   type Point
 } from "../../lib/miniroom.ts";
+
+const prefersReducedMotion = () =>
+  typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+type Press = { id: number; x: number; y: number; at: number; dragging: boolean };
 
 const GREETING_DELAY_MS = 400;
 
@@ -74,6 +84,7 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
          Alt+← 같은 브라우저 단축키도 막지 않습니다. */
       if (event.altKey || event.ctrlKey || event.metaKey || isEditableTarget(event.target)) return;
       event.preventDefault();
+      stopWalking();
       const key = event.key;
       if (key === "ArrowLeft") setFacing("left");
       if (key === "ArrowRight") setFacing("right");
@@ -126,6 +137,115 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
     saveRef.current(next);
   };
 
+  /* ---------------- 마우스·터치로 움직이기 ----------------
+     - 바닥을 누르면(클릭/톡) 그 자리로 걸어갑니다.
+     - 캐릭터를 끌면 손가락·마우스를 따라옵니다. 톡 누르면 지금처럼 모드가 바뀝니다.
+     - 누른 채 움직이면 "누르기" 로 보지 않아서, 모바일에서 미니룸 위를 쓸어도 페이지가 그대로 스크롤됩니다. */
+  const [walking, setWalking] = useState(false);
+  const [draggingChar, setDraggingChar] = useState(false);
+  const posRef = useRef(pos);
+  posRef.current = pos;
+  const walkFrame = useRef<number | null>(null);
+  const floorPress = useRef<Press | null>(null);
+  const charPress = useRef<Press | null>(null);
+  /* 끌기가 끝난 직후 따라오는 click 으로 모드가 바뀌지 않게 막습니다. */
+  const suppressClick = useRef(false);
+
+  function stopWalking() {
+    if (walkFrame.current !== null) cancelAnimationFrame(walkFrame.current);
+    walkFrame.current = null;
+    setWalking(false);
+  }
+
+  useEffect(() => () => stopWalking(), []);
+
+  const stagePoint = (clientX: number, clientY: number): Point | null => {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return null;
+    const p = pointToPercent(clientX, clientY, rect);
+    return clampToFloor(p.x, p.y);
+  };
+
+  function walkTo(target: Point) {
+    stopWalking();
+    setFacing(f => facingToward(posRef.current, target, f));
+    if (prefersReducedMotion()) {
+      setPos(target);
+      return;
+    }
+    setWalking(true);
+    let last = performance.now();
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const next = walkToward(posRef.current, target, WALK_SPEED * dt);
+      posRef.current = next.pos;
+      setPos(next.pos);
+      if (next.arrived) {
+        walkFrame.current = null;
+        setWalking(false);
+      } else {
+        walkFrame.current = requestAnimationFrame(step);
+      }
+    };
+    walkFrame.current = requestAnimationFrame(step);
+  }
+
+  /* 바닥 누르기 — 캐릭터·버튼·가구 편집 중에는 무시합니다. */
+  const onStagePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (editMode || !event.isPrimary || event.button > 0) return;
+    if ((event.target as Element).closest("button, a, input, .is-editable")) return;
+    floorPress.current = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now(), dragging: false };
+  };
+  const onStagePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = floorPress.current;
+    floorPress.current = null;
+    if (!press || press.id !== event.pointerId) return;
+    if (!isTap(event.clientX - press.x, event.clientY - press.y, performance.now() - press.at)) return;
+    const target = stagePoint(event.clientX, event.clientY);
+    if (target) walkTo(target);
+  };
+
+  /* 캐릭터 끌기 */
+  const onCharPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (editMode || !event.isPrimary || event.button > 0) return;
+    /* 터치로 끈 뒤에는 브라우저가 click 을 안 보내기도 해서, 새로 누를 때 막음 표시를 지웁니다. */
+    suppressClick.current = false;
+    charPress.current = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now(), dragging: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onCharPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const press = charPress.current;
+    if (!press || press.id !== event.pointerId) return;
+    if (!press.dragging) {
+      if (isTap(event.clientX - press.x, event.clientY - press.y, 0)) return;
+      press.dragging = true;
+      stopWalking();
+      setDraggingChar(true);
+    }
+    const target = stagePoint(event.clientX, event.clientY);
+    if (!target) return;
+    setFacing(f => facingToward(posRef.current, target, f));
+    posRef.current = target;
+    setPos(target);
+  };
+  const endCharPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const press = charPress.current;
+    if (!press || press.id !== event.pointerId) return;
+    charPress.current = null;
+    if (press.dragging) {
+      suppressClick.current = true;
+      setDraggingChar(false);
+    }
+  };
+  const onCharClick = () => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    cycleMode();
+  };
+
   const mode = characterModes[modeIndex];
 
   /* 캐릭터와 가장 가까운 가구의 상호작용 문구입니다. 클릭으로 뜬 모드 멘트가 먼저입니다. */
@@ -145,8 +265,13 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
 
   return (
     <div
-      className="cy-miniroom-stage"
+      className={"cy-miniroom-stage" + (editMode ? "" : " is-walkable")}
       ref={stageRef}
+      onPointerDown={onStagePointerDown}
+      onPointerUp={onStagePointerUp}
+      onPointerCancel={() => {
+        floorPress.current = null;
+      }}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       onFocus={() => setFocused(true)}
@@ -214,19 +339,25 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
 
       {(hovering || focused) && !editMode ? (
         <div className="cy-miniroom-hint" aria-hidden="true">
-          방향키로 이동 · 클릭하면 모드가 바뀌어요
+          바닥을 누르거나 방향키로 이동 · 캐릭터를 누르면 모드가 바뀌어요
         </div>
       ) : null}
 
       <button
         type="button"
-        className="cy-miniroom-character"
+        className={
+          "cy-miniroom-character" + (walking ? " is-walking" : "") + (draggingChar ? " is-dragging" : "")
+        }
+        onPointerDown={onCharPointerDown}
+        onPointerMove={onCharPointerMove}
+        onPointerUp={endCharPress}
+        onPointerCancel={endCharPress}
         style={{
           left: `${pos.x}%`,
           top: `${pos.y}%`,
           transform: `translate(-50%, -100%) scaleX(${flipScale})`
         }}
-        onClick={cycleMode}
+        onClick={onCharClick}
         aria-label={`캐릭터 모드 바꾸기 (현재: ${mode.label})`}
       >
         {displayBubble ? (

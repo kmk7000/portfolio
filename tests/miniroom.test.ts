@@ -73,3 +73,37 @@ test("isEditableTarget detects form fields and ignores plain elements", () => {
   assert.equal(isEditableTarget(null), false);
   assert.equal(isEditableTarget({} as EventTarget), false);
 });
+
+test("walkToward moves by at most maxStep and snaps on arrival", async () => {
+  const { walkToward } = await import("../src/lib/miniroom.ts");
+  const a = walkToward({ x: 50, y: 60 }, { x: 80, y: 60 }, 10);
+  assert.deepEqual(a, { pos: { x: 60, y: 60 }, arrived: false });
+  const b = walkToward({ x: 50, y: 60 }, { x: 53, y: 64 }, 10);
+  assert.deepEqual(b, { pos: { x: 53, y: 64 }, arrived: true });
+  const c = walkToward({ x: 10, y: 10 }, { x: 10, y: 10 }, 5);
+  assert.equal(c.arrived, true);
+});
+
+test("walking between two floor points never leaves the floor", async () => {
+  const { walkToward, clampToFloor, WALK_SPEED } = await import("../src/lib/miniroom.ts");
+  let pos = clampToFloor(10, 88);
+  const target = clampToFloor(90, 88);
+  for (let i = 0; i < 200; i++) {
+    const next = walkToward(pos, target, WALK_SPEED / 60);
+    pos = next.pos;
+    const c = clampToFloor(pos.x, pos.y);
+    assert.ok(Math.abs(c.x - pos.x) < 1e-9 && Math.abs(c.y - pos.y) < 1e-9, `off floor at ${pos.x},${pos.y}`);
+    if (next.arrived) break;
+  }
+  assert.deepEqual(pos, target);
+});
+
+test("facingToward and isTap", async () => {
+  const { facingToward, isTap, TAP_SLOP_PX, TAP_MAX_MS } = await import("../src/lib/miniroom.ts");
+  assert.equal(facingToward({ x: 50, y: 60 }, { x: 70, y: 60 }, "left"), "right");
+  assert.equal(facingToward({ x: 50, y: 60 }, { x: 30, y: 70 }, "right"), "left");
+  assert.equal(facingToward({ x: 50, y: 60 }, { x: 50.2, y: 80 }, "left"), "left");
+  assert.equal(isTap(3, 4, 100), true);
+  assert.equal(isTap(TAP_SLOP_PX + 1, 0, 100), false);
+  assert.equal(isTap(0, 0, TAP_MAX_MS + 1), false);
+});
