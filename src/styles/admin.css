@@ -268,5 +268,16 @@
 }
 
 /* 긴 주소가 칸 밖으로 넘치지 않게 합니다. */
-.cy-block-href, .cy-wave-edit-row .cy-editable-btn { overflow-wrap: anywhere; word-break: break-all; }
+.cy-block-href, .cy-wave-edit-row .cy-editable-btn { overflow-wrap: anywhere; }
 .cy-wave-edit-row { min-width: 0; }
+
+/* BGM 목록 편집기 */
+.cy-bgm-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dotted #ddd; }
+.cy-bgm-edit-head { font-size: 11px; font-weight: bold; color: #ff6600; }
+.cy-bgm-edit-empty { font-size: 11px; color: #999; }
+.cy-bgm-edit-row a.cy-block-href { text-decoration: none; }
+.cy-bgm-edit-row a.cy-block-href:hover { color: #ff6600; text-decoration: underline; }
+.cy-bgm-add { display: flex; gap: 4px; }
+.cy-bgm-add .cy-edit-input { flex: 1; min-width: 0; font-size: 11px; }
+.cy-bgm-edit-msg { font-size: 11px; color: #2a7a2a; overflow-wrap: anywhere; }
+.cy-bgm-edit-msg.is-error { color: #c0392b; }

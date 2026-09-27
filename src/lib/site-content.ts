@@ -10,11 +10,13 @@
    이 파일은 Firebase 없이 계산만 합니다(테스트하기 쉽게). 주고받기는 site-content-cloud.ts */
 import { furnitureItems } from "../config/furniture.ts";
 import {
+  bgmTracks as staticBgm,
   photoBlocks,
   profile as staticProfile,
   profileBlocks,
   tabs as staticTabs,
   waveLinks as staticWaveLinks,
+  type BgmTrack,
   type ContentBlock,
   type TabDef,
   type TabKind,
@@ -49,6 +51,8 @@ export type SiteContent = {
   blocks: Record<string, ContentBlock[]>;
   waveLinks: WaveLink[];
   furniture: FurnitureLayout;
+  /* 왼쪽 BGM 목록(유튜브 영상) */
+  bgm: BgmTrack[];
 };
 
 export type SiteContentPatch = Partial<SiteContent>;
@@ -70,7 +74,8 @@ export function defaultContent(): SiteContent {
     tabs: staticTabs.map(t => ({ ...t })),
     blocks: { profile: profileBlocks.map(b => ({ ...b })), photo: photoBlocks.map(b => ({ ...b })) },
     waveLinks: staticWaveLinks.map(w => ({ ...w })),
-    furniture: defaultFurniture()
+    furniture: defaultFurniture(),
+    bgm: staticBgm.map(t => ({ ...t }))
   };
 }
 
@@ -170,6 +175,60 @@ function cleanFurniture(raw: unknown, base: FurnitureLayout): FurnitureLayout {
   return out;
 }
 
+/* 유튜브 영상 id 는 11자(영문·숫자·-·_)입니다. */
+export const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
+
+function cleanBgm(raw: unknown, base: BgmTrack[]): BgmTrack[] {
+  if (!Array.isArray(raw)) return base;
+  const seen = new Set<string>();
+  const out: BgmTrack[] = [];
+  for (const t of raw) {
+    if (!isObj(t)) continue;
+    const id = str(t.id);
+    const videoId = str(t.videoId);
+    if (!id || seen.has(id) || !YOUTUBE_ID.test(videoId)) continue;
+    seen.add(id);
+    const track: BgmTrack = { id, title: str(t.title) || "제목 없음", videoId };
+    if (str(t.artist)) track.artist = str(t.artist);
+    if (Number.isFinite(t.startAt) && (t.startAt as number) > 0) track.startAt = Math.floor(t.startAt as number);
+    out.push(track);
+  }
+  return out;
+}
+
+/* 붙여 넣은 유튜브 주소에서 영상 id 와 시작 위치(t=)를 꺼냅니다. 못 알아보면 null 입니다.
+   youtu.be/ID, youtube.com/watch?v=ID, /embed/ID, /shorts/ID, music.youtube.com 을 받습니다. */
+export function parseYouTubeUrl(input: string): { videoId: string; startAt?: number } | null {
+  const text = input.trim();
+  if (YOUTUBE_ID.test(text)) return { videoId: text };
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.replace(/^(www\.|m\.|music\.)/, "");
+  let id = "";
+  if (host === "youtu.be") id = url.pathname.slice(1).split("/")[0];
+  else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    id = url.searchParams.get("v") ?? "";
+    const m = url.pathname.match(/^\/(embed|shorts|live|v)\/([^/]+)/);
+    if (!id && m) id = m[2];
+  }
+  if (!YOUTUBE_ID.test(id)) return null;
+  const t = url.searchParams.get("t") ?? url.searchParams.get("start");
+  const seconds = t ? parseTimeParam(t) : 0;
+  return seconds > 0 ? { videoId: id, startAt: seconds } : { videoId: id };
+}
+
+/* "90", "90s", "1m30s", "1h2m3s" → 초 */
+function parseTimeParam(t: string): number {
+  if (/^\d+$/.test(t)) return Number(t);
+  const m = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  if (!m) return 0;
+  return Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
+}
+
 /* Firestore 에서 읽은 문서(없으면 undefined) → 화면에 쓸 내용 */
 export function normalizeContent(raw: unknown): SiteContent {
   const base = defaultContent();
@@ -183,7 +242,8 @@ export function normalizeContent(raw: unknown): SiteContent {
     tabs: cleanTabs(raw.tabs, base.tabs),
     blocks: "blocks" in raw ? cleanBlocks(raw.blocks, base.blocks) : base.blocks,
     waveLinks: cleanWaves(raw.waveLinks, base.waveLinks),
-    furniture: cleanFurniture(raw.furniture, base.furniture)
+    furniture: cleanFurniture(raw.furniture, base.furniture),
+    bgm: cleanBgm(raw.bgm, base.bgm)
   };
 }
 

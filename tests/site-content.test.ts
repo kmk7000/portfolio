@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { profile, profileBlocks, tabs } from "../src/config/site.ts";
+import { bgmTracks, profile, profileBlocks, tabs } from "../src/config/site.ts";
 import {
   OWNER_EMAILS,
   defaultContent,
@@ -10,6 +10,7 @@ import {
   linesToItems,
   moveItem,
   normalizeContent,
+  parseYouTubeUrl,
   resolveImageSrc,
   uploadedIdsIn
 } from "../src/lib/site-content.ts";
@@ -74,4 +75,35 @@ test("editing helpers", () => {
   assert.equal(isSafeHref("javascript:alert(1)"), false);
   assert.equal(isSafeHref("data:text/html,x"), false);
   assert.deepEqual(linesToItems(" 하나 \n\n 둘\n"), ["하나", "둘"]);
+});
+
+test("bgm list: defaults from code, saved list replaces it, bad tracks dropped", () => {
+  assert.deepEqual(normalizeContent(undefined).bgm, bgmTracks);
+  const c = normalizeContent({
+    bgm: [
+      { id: "a", title: "Myself", artist: "Post Malone", videoId: "Yh14pDsD5DQ", startAt: 12.7 },
+      { id: "b", title: "", videoId: "b8EYaOwq2Fo", startAt: -3 },
+      { id: "c", title: "bad id", videoId: "javascript:x" },
+      { id: "a", title: "dup", videoId: "b8EYaOwq2Fo" },
+      "junk"
+    ]
+  });
+  assert.deepEqual(c.bgm, [
+    { id: "a", title: "Myself", artist: "Post Malone", videoId: "Yh14pDsD5DQ", startAt: 12 },
+    { id: "b", title: "제목 없음", videoId: "b8EYaOwq2Fo" }
+  ]);
+  assert.deepEqual(normalizeContent({ bgm: [] }).bgm, [], "owner may empty the list");
+});
+
+test("parseYouTubeUrl accepts common YouTube links and rejects others", () => {
+  assert.deepEqual(parseYouTubeUrl("https://youtu.be/Yh14pDsD5DQ?si=wFIO2A3o-Rqhhrpt"), { videoId: "Yh14pDsD5DQ" });
+  assert.deepEqual(parseYouTubeUrl("https://www.youtube.com/watch?v=b8EYaOwq2Fo&t=1m30s"), { videoId: "b8EYaOwq2Fo", startAt: 90 });
+  assert.deepEqual(parseYouTubeUrl("https://m.youtube.com/watch?v=b8EYaOwq2Fo&t=45"), { videoId: "b8EYaOwq2Fo", startAt: 45 });
+  assert.deepEqual(parseYouTubeUrl("https://music.youtube.com/watch?v=b8EYaOwq2Fo"), { videoId: "b8EYaOwq2Fo" });
+  assert.deepEqual(parseYouTubeUrl("https://www.youtube.com/embed/Yh14pDsD5DQ"), { videoId: "Yh14pDsD5DQ" });
+  assert.deepEqual(parseYouTubeUrl("https://www.youtube.com/shorts/Yh14pDsD5DQ"), { videoId: "Yh14pDsD5DQ" });
+  assert.deepEqual(parseYouTubeUrl(" Yh14pDsD5DQ "), { videoId: "Yh14pDsD5DQ" });
+  assert.equal(parseYouTubeUrl("https://evil.com/watch?v=b8EYaOwq2Fo"), null);
+  assert.equal(parseYouTubeUrl("https://youtu.be/short"), null);
+  assert.equal(parseYouTubeUrl("노래"), null);
 });

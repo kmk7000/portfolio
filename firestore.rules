@@ -59,7 +59,7 @@ service cloud.firestore {
     match /site/content {
       allow read: if true;
       allow create, update: if isOwner()
-        && data().keys().hasOnly(['profile', 'tabs', 'blocks', 'waveLinks', 'furniture', 'updatedAt']);
+        && data().keys().hasOnly(['profile', 'tabs', 'blocks', 'waveLinks', 'furniture', 'bgm', 'updatedAt']);
       allow delete: if false;
     }
 

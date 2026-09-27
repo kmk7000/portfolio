@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { bgmTracks } from "../config/site.ts";
 import { clock, trackIndexAt } from "../lib/bgm.ts";
+import { useSite } from "../lib/site-context.tsx";
+import BgmEditor from "./BgmEditor.tsx";
 import { PLAYER_STATE, loadYouTubeApi, type YouTubePlayer } from "../lib/youtube.ts";
 
 /* 인트로 버튼을 누르는 순간 재생을 시작하려고 부모에게 start 를 넘겨줍니다.
@@ -13,7 +14,17 @@ const BLOCK_CHECK_MS = 900;
 const BLOCK_CHECK_TRIES = 6;
 
 export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
-  const [index, setIndex] = useState(0);
+  /* 곡 목록은 주인장이 편집 모드에서 고칠 수 있습니다(site/content.bgm). 없으면 코드의 목록입니다. */
+  const { content, editing } = useSite();
+  const bgmTracks = content.bgm;
+  /* 플레이어 이벤트 안에서도 늘 최신 목록을 보도록 담아 둡니다. */
+  const tracksRef = useRef(bgmTracks);
+  tracksRef.current = bgmTracks;
+  const hasTracks = bgmTracks.length > 0;
+  /* 목록이 바뀌어도(순서 변경·삭제) 듣던 곡을 잃지 않도록 번호 대신 id 로 기억합니다. */
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const found = bgmTracks.findIndex(t => t.id === currentId);
+  const index = found >= 0 ? found : 0;
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(DEFAULT_VOLUME);
@@ -31,6 +42,8 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
   const blockTimerRef = useRef<number | null>(null);
   /* 지금 플레이어에 올라가 있는 영상입니다. 같은 영상 안의 곡이면 다시 불러오지 않고 위치만 옮깁니다. */
   const loadedVideoRef = useRef(bgmTracks[0]?.videoId ?? "");
+  /* 플레이어가 준비되기 전에 고른 곡입니다. 준비되는 순간 그 곡을 올립니다. */
+  const pendingRef = useRef<{ videoId: string; startAt?: number } | null>(null);
 
   const stopWatching = () => {
     if (blockTimerRef.current !== null) window.clearInterval(blockTimerRef.current);
@@ -38,7 +51,7 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
   };
 
   useEffect(() => {
-    if (bgmTracks.length === 0) return;
+    if (!hasTracks) return;
 
     let cancelled = false;
     let player: YouTubePlayer | null = null;
@@ -51,8 +64,9 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
         const mount = document.createElement("div");
         stageRef.current.replaceChildren(mount);
 
+        loadedVideoRef.current = tracksRef.current[0].videoId;
         player = new api.Player(mount, {
-          videoId: bgmTracks[0].videoId,
+          videoId: tracksRef.current[0].videoId,
           playerVars: {
             controls: 0,
             disablekb: 1,
@@ -68,7 +82,14 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
               /* 준비가 끝난 뒤에만 바깥에서 쓰게 넘겨 둡니다. onReady 전에는 playVideo 같은
                  함수가 아직 붙어 있지 않아서, 그 사이에 누르면 오류가 납니다. */
               playerRef.current = player;
-              if (wantsPlayRef.current) player.playVideo();
+              const pending = pendingRef.current;
+              pendingRef.current = null;
+              if (pending && pending.videoId !== loadedVideoRef.current) {
+                loadedVideoRef.current = pending.videoId;
+                const target = { videoId: pending.videoId, startSeconds: pending.startAt ?? 0 };
+                if (wantsPlayRef.current) player.loadVideoById(target);
+                else player.cueVideoById(target);
+              } else if (wantsPlayRef.current) player.playVideo();
             },
             onStateChange: event => {
               if (event.data === PLAYER_STATE.playing) {
@@ -78,12 +99,11 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
                 setPlaying(false);
               } else if (event.data === PLAYER_STATE.ended) {
                 /* 영상이 끝났습니다. 처음 곡으로 돌아가 다시 틉니다. */
-                setIndex(0);
-                loadedVideoRef.current = bgmTracks[0].videoId;
-                playerRef.current?.loadVideoById({
-                  videoId: bgmTracks[0].videoId,
-                  startSeconds: bgmTracks[0].startAt ?? 0
-                });
+                const first = tracksRef.current[0];
+                if (!first) return;
+                setCurrentId(first.id);
+                loadedVideoRef.current = first.videoId;
+                playerRef.current?.loadVideoById({ videoId: first.videoId, startSeconds: first.startAt ?? 0 });
               }
             },
             onError: event => {
@@ -105,7 +125,7 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
       if (typeof player?.destroy === "function") player.destroy();
       playerRef.current = null;
     };
-  }, []);
+  }, [hasTracks]);
 
   /* 한 영상 안에 여러 곡이 들어 있는 경우, 재생이 흘러가는 대로 현재 곡 표시를 옮깁니다. */
   useEffect(() => {
@@ -113,8 +133,9 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
     const timer = window.setInterval(() => {
       const player = playerRef.current;
       if (!player) return;
-      const found = trackIndexAt(bgmTracks, loadedVideoRef.current, player.getCurrentTime());
-      if (found >= 0) setIndex(current => (current === found ? current : found));
+      const at = trackIndexAt(tracksRef.current, loadedVideoRef.current, player.getCurrentTime());
+      const id = at >= 0 ? tracksRef.current[at].id : null;
+      if (id) setCurrentId(current => (current === id ? current : id));
     }, 1000);
     return () => window.clearInterval(timer);
   }, [playing]);
@@ -167,11 +188,17 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
 
   const selectTrack = (next: number) => {
     const track = bgmTracks[next];
-    setIndex(next);
+    if (!track) return;
+    setCurrentId(track.id);
     setBlocked(false);
 
     const player = playerRef.current;
-    if (!player) return;
+    if (!player) {
+      /* 아직 준비 전입니다. 준비되면 이 곡을 올리고, 누른 것이므로 재생까지 합니다. */
+      pendingRef.current = { videoId: track.videoId, startAt: track.startAt };
+      wantsPlayRef.current = true;
+      return;
+    }
 
     if (track.videoId === loadedVideoRef.current) {
       player.seekTo(track.startAt ?? 0, true);
@@ -206,7 +233,7 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
     }
   };
 
-  if (bgmTracks.length === 0) return null;
+  if (!hasTracks) return editing ? <BgmEditor /> : null;
 
   const current = bgmTracks[index];
 
@@ -269,6 +296,8 @@ export default function BgmPlayer({ ref }: { ref?: Ref<BgmHandle> }) {
           재생 버튼을 눌러 주세요.
         </div>
       ) : null}
+
+      {editing ? <BgmEditor /> : null}
 
       {/* 유튜브가 이 자리를 iframe 으로 바꿉니다. 소리만 쓰므로 항상 화면 밖에 둡니다. */}
       <div className="cy-bgm-stage" aria-hidden="true">

@@ -128,6 +128,8 @@ test("only the two owner Google accounts can edit site content and upload images
   await assertFails(setDoc(doc(anonWithEmail, "site/content"), content));
   await assertSucceeds(setDoc(doc(owner(), "site/content"), content));
   await assertSucceeds(setDoc(doc(owner2(), "site/content"), { furniture: {} }, { merge: true }));
+  await assertSucceeds(setDoc(doc(owner(), "site/content"), { bgm: [{ id: "a", title: "Myself", videoId: "Yh14pDsD5DQ" }] }, { merge: true }));
+  await assertFails(setDoc(doc(as("alice"), "site/content"), { bgm: [] }, { merge: true }));
   await assertFails(setDoc(doc(owner(), "site/content"), { ownerUid: "hijack" }, { merge: true }));
   await assertFails(deleteDoc(doc(owner(), "site/content")));
 

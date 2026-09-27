@@ -15,6 +15,7 @@ export type YouTubePlayer = {
   playVideo: () => void;
   pauseVideo: () => void;
   loadVideoById: (target: string | { videoId: string; startSeconds?: number }) => void;
+  cueVideoById: (target: string | { videoId: string; startSeconds?: number }) => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   getCurrentTime: () => number;
   setVolume: (volume: number) => void;
@@ -85,4 +86,18 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
   });
 
   return pending;
+}
+
+/* 유튜브 oEmbed 로 영상 제목·채널을 알아옵니다. 브라우저에서 바로 부를 수 있습니다(CORS 허용).
+   외부 사이트 재생(임베드)이 막힌 영상은 401, 없는 영상은 400/404 를 돌려줍니다. */
+export async function fetchYouTubeInfo(videoId: string): Promise<{ title: string; author: string }> {
+  const target = encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`);
+  const res = await fetch(`https://www.youtube.com/oembed?url=${target}&format=json`);
+  if (res.status === 401 || res.status === 403) throw new Error("이 영상은 다른 사이트에서 재생할 수 없게 막혀 있어요. 다른 영상을 골라 주세요.");
+  if (!res.ok) throw new Error("영상을 찾지 못했어요. 주소를 확인해 주세요.");
+  const body = (await res.json()) as { title?: unknown; author_name?: unknown };
+  return {
+    title: typeof body.title === "string" ? body.title : "",
+    author: typeof body.author_name === "string" ? body.author_name : ""
+  };
 }
