@@ -442,7 +442,8 @@ export type BgmTrack = {
 };
 
 export const bgmTracks: BgmTrack[] = [
-  { id: "die-for-you", title: "Die For You", artist: "The Weeknd & Ariana Grande", videoId: "b8EYaOwq2Fo" }
+  { id: "die-for-you", title: "Die For You", artist: "The Weeknd & Ariana Grande", videoId: "b8EYaOwq2Fo" },
+  { id: "myself", title: "Myself", artist: "Post Malone", videoId: "Yh14pDsD5DQ" }
 ];
 
 /* ------------------------------------------------------------------ */
