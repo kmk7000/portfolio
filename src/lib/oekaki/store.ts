@@ -38,6 +38,8 @@ export type OekakiEntry = {
   time: string;
   at: number;
   mine: boolean;
+  /* 주인장이 가린 그림. 주인장에게만 불러와집니다. */
+  hidden: boolean;
   replies: OekakiReply[];
 };
 
@@ -109,6 +111,7 @@ export function buildDrawings(drawings: readonly Row[], replies: readonly Row[],
         date: formatDate(new Date(at)),
         time: formatTime(new Date(at)),
         mine: !!myUid && d.data.uid === myUid,
+        hidden: d.data.hidden === true,
         replies: (byDrawing.get(d.id) ?? []).sort((a, b) => a.at - b.at)
       };
     })

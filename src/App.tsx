@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { tabs } from "./config/site.ts";
 import { asset } from "./lib/asset.ts";
 import { resolveTab } from "./lib/blocks.ts";
 import { PROJECT_PARAM, projectSearch } from "./lib/projects.ts";
+import { useSite } from "./lib/site-context.tsx";
 import IntroOverlay from "./components/IntroOverlay.tsx";
 import LeftPanel from "./components/LeftPanel.tsx";
 import RightPanel from "./components/RightPanel.tsx";
@@ -22,16 +22,20 @@ function readTabParam(): string | null {
 }
 
 export default function App() {
+  const { content, adminMode } = useSite();
+  const tabs = content.tabs;
   const [deepLink] = useState(readTabParam);
   const [activeTabId, setActiveTabId] = useState(() => resolveTab(deepLink, tabs).id);
-  const [introSkipped, setIntroSkipped] = useState(deepLink !== null);
+  /* 주인장 메뉴(?admin=1)로 들어와도 인트로를 건너뜁니다. (원본과 같은 동작) */
+  const [introSkipped, setIntroSkipped] = useState(deepLink !== null || adminMode);
   /* 미니홈피에 처음 들어온 순간(인트로를 지나거나 홈 딥링크로 들어온 순간) 캐릭터가 인사합니다. */
   const [greetPending, setGreetPending] = useState(
     () => deepLink !== null && resolveTab(deepLink, tabs).kind === "home"
   );
   const bgmRef = useRef<BgmHandle>(null);
 
-  const activeTab = tabs.find(t => t.id === activeTabId) ?? tabs[0];
+  /* 저장된 탭 목록이 늦게 도착해 딥링크 탭이 그때 생길 수 있어, 처음 고른 탭을 다시 맞춥니다. */
+  const activeTab = tabs.find(t => t.id === activeTabId) ?? resolveTab(deepLink, tabs);
 
   /* 인트로가 떠 있는 동안에는 뒤쪽이 스크롤되지 않게 막습니다. */
   useEffect(() => {
@@ -83,7 +87,7 @@ export default function App() {
           <div className="cy-book-inner">
             <LeftPanel bgmRef={bgmRef} />
             <RightPanel tab={activeTab} greet={greetPending} onGreeted={greeted} />
-            <TabNav tabs={tabs} activeId={activeTab.id} onSelect={selectTab} />
+            <TabNav activeId={activeTab.id} onSelect={selectTab} />
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Spiral, type SpiralProps } from "@paper-design/shaders-react";
-import { profile } from "../config/site.ts";
+import { useSite } from "../lib/site-context.tsx";
 import { theme } from "../config/theme.ts";
 
 /* 진입 화면 셰이더 배경 설정입니다. 원본 LinkTree.tsx 의 spiralProps 와 같은 값입니다. */
@@ -60,14 +60,15 @@ function ChevronDown({ size = 18 }: { size?: number }) {
 }
 
 export default function IntroOverlay({ onEnter }: { onEnter: () => void }) {
+  const { content } = useSite();
   return (
     <div className="lt-intro" style={introStyle} role="dialog" aria-modal="true" aria-labelledby="lt-intro-title">
       <Spiral className="lt-intro-spiral" {...spiralProps} />
       <div className="lt-intro-card">
         <span className="lt-intro-title" id="lt-intro-title">
-          {profile.introTitle}
+          {content.profile.introTitle}
         </span>
-        <p className="lt-intro-copy">{profile.introDescription}</p>
+        <p className="lt-intro-copy">{content.profile.introDescription}</p>
         <button type="button" className="lt-intro-cta" onClick={onEnter}>
           모든 활동 구경하기
           <ChevronDown size={18} />

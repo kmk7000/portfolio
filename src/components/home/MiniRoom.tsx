@@ -3,6 +3,8 @@ import { characterModes } from "../../config/character.ts";
 import { furnitureItems } from "../../config/furniture.ts";
 import { profile } from "../../config/site.ts";
 import { asset } from "../../lib/asset.ts";
+import type { FurnitureLayout } from "../../lib/site-content.ts";
+import { useSite } from "../../lib/site-context.tsx";
 import {
   BUBBLE_DURATION_MS,
   START_POSITION,
@@ -13,12 +15,6 @@ import {
   stepCharacter,
   type Point
 } from "../../lib/miniroom.ts";
-
-type FurnitureLayout = Record<string, Point & { flip: boolean }>;
-
-function initialLayout(): FurnitureLayout {
-  return Object.fromEntries(furnitureItems.map(item => [item.id, { x: item.x, y: item.y, flip: Boolean(item.flip) }]));
-}
 
 const GREETING_DELAY_MS = 400;
 
@@ -34,13 +30,25 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
 
-  /* 편집모드: 가구를 끌어 옮기고 좌우 반전을 미리 볼 수 있습니다(원본과 같은 개발용 기능).
-     여기서 옮긴 값은 저장되지 않으니, 마음에 드는 좌표를 src/config/furniture.ts 에 적으세요.
-     주소 끝에 ?edit=1 을 붙였을 때만 켜는 버튼이 보입니다. */
-  const [canEdit] = useState(() => new URLSearchParams(window.location.search).get("edit") === "1");
-  const [editMode, setEditMode] = useState(false);
-  const [layout, setLayout] = useState<FurnitureLayout>(initialLayout);
+  /* 가구 배치는 주인장이 편집 모드에서 끌어 옮기면 저장됩니다(site/content.furniture).
+     ?edit=1 은 원본의 개발용 미리보기로, 옮겨도 저장되지 않습니다. */
+  const { content, update, editing: ownerEditing } = useSite();
+  const [canPreview] = useState(() => new URLSearchParams(window.location.search).get("edit") === "1");
+  const [previewMode, setPreviewMode] = useState(false);
+  const editMode = ownerEditing || previewMode;
+  const [layout, setLayout] = useState<FurnitureLayout>(content.furniture);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  const saveRef = useRef<(next: FurnitureLayout) => void>(() => {});
+  saveRef.current = next => {
+    if (ownerEditing) update({ furniture: next });
+  };
+
+  /* 저장된 배치가 바뀌면(다른 기기에서 고쳤거나 처음 불러왔을 때) 따라갑니다. 끄는 중에는 기다립니다. */
+  useEffect(() => {
+    if (!draggingId && !previewMode) setLayout(content.furniture);
+  }, [content.furniture, draggingId, previewMode]);
 
   /* 미니홈피에 처음 들어온 순간 인사 멘트를 띄웁니다. 이 멘트는 타이머로 사라지지 않고,
      캐릭터를 클릭해서 모드를 바꾸기 전까지 떠 있습니다. */
@@ -93,6 +101,7 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
     }
     function onUp() {
       setDraggingId(null);
+      saveRef.current(layoutRef.current);
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -111,8 +120,11 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
     setDraggingId(id);
   };
 
-  const toggleFlip = (id: string) =>
-    setLayout(prev => ({ ...prev, [id]: { ...prev[id], flip: !prev[id].flip } }));
+  const toggleFlip = (id: string) => {
+    const next = { ...layoutRef.current, [id]: { ...layoutRef.current[id], flip: !layoutRef.current[id].flip } };
+    setLayout(next);
+    saveRef.current(next);
+  };
 
   const mode = characterModes[modeIndex];
 
@@ -189,10 +201,15 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
         </div>
       ) : null}
 
-      {canEdit ? (
-        <button type="button" className="cy-miniroom-edit-toggle" onClick={() => setEditMode(v => !v)}>
-          {editMode ? "편집모드 끄기" : "편집모드"}
+      {canPreview && !ownerEditing ? (
+        <button type="button" className="cy-miniroom-edit-toggle" onClick={() => setPreviewMode(v => !v)}>
+          {previewMode ? "편집모드 끄기" : "편집모드"}
         </button>
+      ) : null}
+      {ownerEditing ? (
+        <div className="cy-miniroom-edit-toggle" role="note">
+          가구를 끌어 옮기면 저장돼요
+        </div>
       ) : null}
 
       {(hovering || focused) && !editMode ? (

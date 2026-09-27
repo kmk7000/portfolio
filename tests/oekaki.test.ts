@@ -129,6 +129,8 @@ test("buildDrawings sorts newest first, formats time, marks mine and ignores non
   assert.deepEqual(list.map(d => d.author), ["창욱", "이나"]);
   assert.deepEqual([list[1].date, list[1].time], ["2026.09.07", "00:49"]);
   assert.deepEqual(list.map(d => [d.mine, d.hasReplay]), [[false, true], [true, false]]);
+  assert.deepEqual(list.map(d => d.hidden), [false, false]);
+  assert.equal(buildDrawings([row("h", { author: "a", image: PNG, hidden: true, createdAt: 1 })], [], null)[0].hidden, true);
   assert.deepEqual(list[1].replies.map(r => r.text), ["귀여워"]);
   assert.equal(list[0].replies.length, 0);
 });

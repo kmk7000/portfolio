@@ -11,6 +11,7 @@ import {
   type GuestbookEntry
 } from "../../lib/guestbook.ts";
 import { addEntry, addReply, removeEntry, removeReply, subscribeGuestbook } from "../../lib/guestbook-cloud.ts";
+import { useSite } from "../../lib/site-context.tsx";
 import { getStorage } from "../../lib/storage.ts";
 import Pagination from "../Pagination.tsx";
 
@@ -83,7 +84,7 @@ function GuestbookForm({ onSaved }: { onSaved: () => void }) {
 }
 
 /* 방명록 글 하나에 달린 댓글 목록 + 댓글 쓰기 칸입니다. */
-function ReplyThread({ entry }: { entry: GuestbookEntry }) {
+function ReplyThread({ entry, isOwner }: { entry: GuestbookEntry; isOwner: boolean }) {
   const fieldId = useId();
   const [open, setOpen] = useState(false);
   const [author, setAuthor] = useState(() => loadAuthor(getStorage()));
@@ -136,7 +137,7 @@ function ReplyThread({ entry }: { entry: GuestbookEntry }) {
               <span className="cy-reply-author">{r.author}</span>
               <span className="cy-reply-text">{r.text}</span>
               <span className="cg-date">({r.date})</span>
-              {r.mine || entry.mine ? (
+              {r.mine || entry.mine || isOwner ? (
                 <button type="button" className="cg-delete" onClick={() => remove(r.id)}>
                   삭제
                 </button>
@@ -184,6 +185,8 @@ function ReplyThread({ entry }: { entry: GuestbookEntry }) {
 
 /* 홈 탭 "What friends say" 목록입니다. 최근 글이 위, 예시 글이 맨 아래이고 5개씩 쪽을 나눕니다. */
 export default function Guestbook() {
+  /* 주인장은 누구의 글이든 지울 수 있습니다. (원본과 같음) */
+  const { isOwner } = useSite();
   /* null: 아직 불러오는 중 */
   const [shared, setShared] = useState<GuestbookEntry[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -232,12 +235,12 @@ export default function Guestbook() {
               </span>
               <span className="cg-text">{c.text}</span>
               <span className="cg-date">({c.date})</span>
-              {c.mine ? (
+              {c.mine || (isOwner && !c.seed) ? (
                 <button type="button" className="cg-delete" onClick={() => remove(c)}>
                   삭제
                 </button>
               ) : null}
-              {c.seed ? null : <ReplyThread entry={c} />}
+              {c.seed ? null : <ReplyThread entry={c} isOwner={isOwner} />}
             </div>
           ))
         )}

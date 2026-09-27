@@ -1,5 +1,6 @@
 /* 낙서장을 Firestore 와 주고받습니다. 낙서장 탭을 열었을 때만 불러옵니다. */
 import { cloud, currentUid, ensureUid, type Cloud } from "../firebase.ts";
+import { isOwnerUser } from "../site-content.ts";
 import { toRows } from "../guestbook-cloud.ts";
 import type { Row } from "../guestbook.ts";
 import {
@@ -25,16 +26,31 @@ export function subscribeOekaki(onData: (items: OekakiEntry[]) => void, onError:
       const emit = () => {
         if (drawings && replies) onData(buildDrawings(drawings, replies, uid));
       };
-      const { query, collection, orderBy, limit, onSnapshot } = fs;
-      stops.push(
-        onSnapshot(
-          query(collection(db, "oekaki"), orderBy("createdAt", "desc"), limit(OEKAKI_MAX_ITEMS)),
+      const { query, collection, orderBy, limit, where, onSnapshot } = fs;
+      /* 가린 그림은 주인장만 읽을 수 있어서, 방문자는 hidden == false 로 걸러야 규칙이 통과시킵니다.
+         로그인 상태가 바뀌면(주인장 로그인/로그아웃) 목록 구독을 다시 겁니다. */
+      let owner: boolean | null = null;
+      let stopDrawings: (() => void) | null = null;
+      const listen = (asOwner: boolean) => {
+        if (owner === asOwner) return;
+        owner = asOwner;
+        stopDrawings?.();
+        drawings = null;
+        const q = asOwner
+          ? query(collection(db, "oekaki"), orderBy("createdAt", "desc"), limit(OEKAKI_MAX_ITEMS))
+          : query(collection(db, "oekaki"), where("hidden", "==", false), orderBy("createdAt", "desc"), limit(OEKAKI_MAX_ITEMS));
+        stopDrawings = onSnapshot(
+          q,
           snap => {
             drawings = toRows(snap);
             emit();
           },
           onError
-        ),
+        );
+      };
+      listen(isOwnerUser(auth.currentUser));
+      stops.push(
+        () => stopDrawings?.(),
         onSnapshot(
           query(collection(db, "oekakiReplies"), orderBy("createdAt", "desc"), limit(OEKAKI_MAX_REPLIES)),
           snap => {
@@ -45,6 +61,7 @@ export function subscribeOekaki(onData: (items: OekakiEntry[]) => void, onError:
         ),
         auth.onIdTokenChanged(user => {
           uid = user?.uid ?? null;
+          listen(isOwnerUser(user));
           emit();
         })
       );
@@ -70,6 +87,7 @@ export async function addDrawing(input: DrawingInput): Promise<void> {
     comment: valid.comment,
     image: valid.image,
     hasReplay: !!valid.replay,
+    hidden: false,
     uid,
     createdAt: fs.serverTimestamp()
   });
@@ -98,6 +116,12 @@ export async function addReply(drawingId: string, input: { author: string; text:
 export async function deleteReply(replyId: string): Promise<void> {
   const { db, fs } = await cloud();
   await fs.deleteDoc(fs.doc(db, "oekakiReplies", replyId));
+}
+
+/* 주인장 전용: 그림 가리기/풀기 */
+export async function setDrawingHidden(id: string, hidden: boolean): Promise<void> {
+  const { db, fs } = await cloud();
+  await fs.updateDoc(fs.doc(db, "oekaki", id), { hidden });
 }
 
 export async function loadReplay(drawingId: string): Promise<string | null> {

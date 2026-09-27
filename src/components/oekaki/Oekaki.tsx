@@ -3,7 +3,16 @@ import { loadAuthor, saveAuthor } from "../../lib/author.ts";
 import { cloudErrorText } from "../../lib/firebase.ts";
 import { PAGE_SIZE, parseReplay, type ReplayOp } from "../../lib/oekaki/draw.ts";
 import { OEKAKI_LIMITS, type OekakiEntry } from "../../lib/oekaki/store.ts";
-import { addDrawing, addReply, deleteDrawing, deleteReply, loadReplay, subscribeOekaki } from "../../lib/oekaki/cloud.ts";
+import {
+  addDrawing,
+  addReply,
+  deleteDrawing,
+  deleteReply,
+  loadReplay,
+  setDrawingHidden,
+  subscribeOekaki
+} from "../../lib/oekaki/cloud.ts";
+import { useSite } from "../../lib/site-context.tsx";
 import { paginate } from "../../lib/guestbook.ts";
 import { getStorage } from "../../lib/storage.ts";
 import Pagination from "../Pagination.tsx";
@@ -16,8 +25,13 @@ const errorText = cloudErrorText;
 function OekakiRow({ item, onOpen }: { item: OekakiEntry; onOpen: () => void }) {
   return (
     <li className="cy-oe-item">
-      <button type="button" className="cy-oe-thumb" onClick={onOpen} aria-label={`${item.author} 님의 그림 열기`}>
+      <button type="button" className="cy-oe-thumb" onClick={onOpen} aria-label={`${item.author} 님의 그림 열기${item.hidden ? " (가림)" : ""}`}>
         <img src={item.image} alt={item.comment || `${item.author} 님의 그림`} loading="lazy" />
+        {item.hidden ? (
+          <span className="cy-oe-badge" aria-hidden="true">
+            가림
+          </span>
+        ) : null}
       </button>
 
       <div className="cy-oe-side">
@@ -52,6 +66,7 @@ function OekakiRow({ item, onOpen }: { item: OekakiEntry; onOpen: () => void }) 
 
 /* 그림 한 장을 크게 보고 덧글을 다는 화면 */
 function OekakiDetail({ item, onClose }: { item: OekakiEntry; onClose: () => void }) {
+  const { isOwner } = useSite();
   const fieldId = useId();
   const [text, setText] = useState("");
   const [replyAuthor, setReplyAuthor] = useState(() => loadAuthor(getStorage()));
@@ -102,6 +117,16 @@ function OekakiDetail({ item, onClose }: { item: OekakiEntry; onClose: () => voi
     }
   };
 
+  /* 주인장 전용: 지우지 않고 방문자에게서만 가립니다. */
+  const toggleHidden = async () => {
+    setError(null);
+    try {
+      await setDrawingHidden(item.id, !item.hidden);
+    } catch (e) {
+      setError(errorText(e, "처리하지 못했어요."));
+    }
+  };
+
   const removeReply = async (replyId: string) => {
     try {
       await deleteReply(replyId);
@@ -125,12 +150,19 @@ function OekakiDetail({ item, onClose }: { item: OekakiEntry; onClose: () => voi
             그리는 과정 재생
           </button>
         )}
-        {item.mine ? (
+        {isOwner ? (
+          <button type="button" className="cy-oe-btn" onClick={toggleHidden} aria-pressed={item.hidden}>
+            {item.hidden ? "가림 풀기" : "가림 처리"}
+          </button>
+        ) : null}
+        {item.mine || isOwner ? (
           <button type="button" className="cy-oe-btn" onClick={removeDrawing}>
             그림 삭제
           </button>
         ) : null}
       </div>
+
+      {item.hidden ? <p className="cy-oe-hidden-note">가림 처리된 그림입니다. 주인장에게만 보입니다.</p> : null}
 
       {ops ? (
         <OekakiPlayer image={item.image} ops={ops} />
@@ -156,7 +188,7 @@ function OekakiDetail({ item, onClose }: { item: OekakiEntry; onClose: () => voi
               <span className="cy-oe-reply-text">{r.text}</span>
               <span className="cy-oe-date">
                 {r.date} {r.time}
-                {r.mine || item.mine ? (
+                {r.mine || item.mine || isOwner ? (
                   <button type="button" className="cg-act" onClick={() => removeReply(r.id)}>
                     삭제
                   </button>

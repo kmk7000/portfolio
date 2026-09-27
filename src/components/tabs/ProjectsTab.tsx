@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { profile, projects, type TabDef } from "../../config/site.ts";
 import { PROJECT_PARAM, findProject, projectSearch } from "../../lib/projects.ts";
+import { useSite } from "../../lib/site-context.tsx";
 import SectionTitle from "../SectionTitle.tsx";
 import ProjectDetail from "../projects/ProjectDetail.tsx";
 import ProjectList from "../projects/ProjectList.tsx";
@@ -27,6 +28,7 @@ function isPlainClick(event: MouseEvent) {
 /* 프로젝트 탭: 목록과 상세를 오갑니다. 상세는 ?tab=projects&project=<id> 주소를 가져서
    공유할 수 있고, 브라우저 뒤로 가기를 누르면 목록으로 돌아옵니다. */
 export default function ProjectsTab({ tab }: { tab: TabDef }) {
+  const { content } = useSite();
   const [selectedId, setSelectedId] = useState<string | null>(projectIdInUrl);
   const selectedRef = useRef(selectedId);
   const focusTarget = useRef<FocusTarget | null>(null);
@@ -85,7 +87,7 @@ export default function ProjectsTab({ tab }: { tab: TabDef }) {
 
   return (
     <div className="cy-content-box">
-      <SectionTitle title={tab.label} sub={profile.projectsSubtitle} />
+      <SectionTitle title={tab.label} sub={content.profile.projectsSubtitle} />
 
       {selected ? (
         <ProjectDetail

@@ -8,7 +8,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment
 } from "@firebase/rules-unit-testing";
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch, Timestamp } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, Timestamp } from "firebase/firestore";
 
 let env: RulesTestEnvironment;
 
@@ -23,6 +23,10 @@ beforeEach(() => env.clearFirestore());
 
 const as = (uid: string) => env.authenticatedContext(uid).firestore();
 const guest = () => env.unauthenticatedContext().firestore();
+const google = (uid: string, email: string, verified = true) =>
+  env.authenticatedContext(uid, { email, email_verified: verified, firebase: { sign_in_provider: "google.com" } }).firestore();
+const owner = () => google("owner", "milk454537@gmail.com");
+const owner2 = () => google("owner2", "milk45453@gmail.com");
 const png = "data:image/png;base64,iVBORw0KGgo=";
 
 const entry = (uid: string, over: Record<string, unknown> = {}) => ({
@@ -37,6 +41,7 @@ const drawing = (uid: string, over: Record<string, unknown> = {}) => ({
   comment: "",
   image: png,
   hasReplay: false,
+  hidden: false,
   uid,
   createdAt: serverTimestamp(),
   ...over
@@ -111,4 +116,63 @@ test("drawings: png data only, size-limited; replay saved with its drawing", asy
 test("other collections are closed", async () => {
   await assertFails(setDoc(doc(as("alice"), "counters/site"), { total: 1 }));
   await assertFails(getDoc(doc(guest(), "users/alice")));
+});
+
+test("only the two owner Google accounts can edit site content and upload images", async () => {
+  const content = { profile: { ownerName: "민규" }, tabs: [], blocks: {}, waveLinks: [] };
+  await assertSucceeds(getDoc(doc(guest(), "site/content")));
+  await assertFails(setDoc(doc(as("alice"), "site/content"), content));
+  await assertFails(setDoc(doc(google("x", "someone@gmail.com"), "site/content"), content));
+  await assertFails(setDoc(doc(google("y", "milk454537@gmail.com", false), "site/content"), content));
+  const anonWithEmail = env.authenticatedContext("z", { email: "milk454537@gmail.com", email_verified: true, firebase: { sign_in_provider: "anonymous" } }).firestore();
+  await assertFails(setDoc(doc(anonWithEmail, "site/content"), content));
+  await assertSucceeds(setDoc(doc(owner(), "site/content"), content));
+  await assertSucceeds(setDoc(doc(owner2(), "site/content"), { furniture: {} }, { merge: true }));
+  await assertFails(setDoc(doc(owner(), "site/content"), { ownerUid: "hijack" }, { merge: true }));
+  await assertFails(deleteDoc(doc(owner(), "site/content")));
+
+  const jpg = "data:image/jpeg;base64,/9j/4AAQ";
+  await assertFails(setDoc(doc(as("alice"), "images/a"), { dataUrl: jpg }));
+  await assertFails(setDoc(doc(owner(), "images/svg"), { dataUrl: "data:image/svg+xml;base64,PHN2Zz4=" }));
+  await assertSucceeds(setDoc(doc(owner(), "images/a"), { dataUrl: jpg }));
+  await assertSucceeds(getDoc(doc(guest(), "images/a")));
+  await assertFails(deleteDoc(doc(as("alice"), "images/a")));
+  await assertSucceeds(deleteDoc(doc(owner(), "images/a")));
+});
+
+test("owner can delete anyone's guestbook entries and replies", async () => {
+  await assertSucceeds(setDoc(doc(as("alice"), "guestbook/a"), entry("alice")));
+  await assertSucceeds(
+    setDoc(doc(as("bob"), "guestbookReplies/r"), { entryId: "a", author: "밥", text: "안녕", uid: "bob", createdAt: serverTimestamp() })
+  );
+  await assertFails(updateDoc(doc(owner(), "guestbook/a"), { text: "고침" }));
+  await assertSucceeds(deleteDoc(doc(owner(), "guestbookReplies/r")));
+  await assertSucceeds(deleteDoc(doc(owner(), "guestbook/a")));
+});
+
+test("owner can hide drawings; hidden drawings and replays are owner-only", async () => {
+  const db = as("alice");
+  await assertFails(setDoc(doc(db, "oekaki/h"), drawing("alice", { hidden: true })));
+  const batch = writeBatch(db);
+  batch.set(doc(db, "oekaki/d"), drawing("alice", { hasReplay: true }));
+  batch.set(doc(db, "oekakiReplays/d"), { replay: "[]", uid: "alice" });
+  await assertSucceeds(batch.commit());
+
+  await assertFails(updateDoc(doc(db, "oekaki/d"), { hidden: true }));
+  await assertFails(updateDoc(doc(owner(), "oekaki/d"), { hidden: true, comment: "x" }));
+  await assertSucceeds(updateDoc(doc(owner(), "oekaki/d"), { hidden: true }));
+
+  await assertFails(getDoc(doc(guest(), "oekaki/d")));
+  await assertFails(getDoc(doc(guest(), "oekakiReplays/d")));
+  await assertSucceeds(getDocs(query(collection(guest(), "oekaki"), where("hidden", "==", false))));
+  await assertFails(getDocs(collection(guest(), "oekaki")));
+  await assertSucceeds(getDoc(doc(owner(), "oekaki/d")));
+  await assertSucceeds(getDoc(doc(owner(), "oekakiReplays/d")));
+  await assertSucceeds(getDocs(collection(owner(), "oekaki")));
+
+  const o = owner();
+  const remove = writeBatch(o);
+  remove.delete(doc(o, "oekakiReplays/d"));
+  remove.delete(doc(o, "oekaki/d"));
+  await assertSucceeds(remove.commit());
 });

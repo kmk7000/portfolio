@@ -29,7 +29,8 @@ export const contactEmail = "milk45453@gmail.com";
 /* 오른쪽 탭                                                            */
 /* ------------------------------------------------------------------ */
 
-export type TabKind = "home" | "profile" | "projects" | "photo" | "oekaki";
+/* custom 은 주인장이 편집 모드에서 직접 만든 탭입니다(사진 위주, 앨범/연도별 보기). */
+export type TabKind = "home" | "profile" | "projects" | "photo" | "oekaki" | "custom";
 
 /* 탭 내용을 보여 주는 방식입니다. list: 세로 목록, album: 격자, year: 연도별 묶음 */
 export type TabView = "list" | "album" | "year";
@@ -38,6 +39,8 @@ export type TabDef = {
   id: string;
   label: string;
   kind: TabKind;
+  /* 주인장이 정한 기본 보기. 방문자는 화면에서 잠깐 바꿔 볼 수 있습니다. */
+  view?: TabView;
 };
 
 export const tabs: TabDef[] = [

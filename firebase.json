@@ -17,7 +17,11 @@
   },
   "auth": {
     "providers": {
-      "anonymous": true
+      "anonymous": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "민규의 AI 작업실",
+        "supportEmail": "milk454537@gmail.com"
+      }
     }
   }
 }

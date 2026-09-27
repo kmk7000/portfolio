@@ -5,12 +5,21 @@ rules_version = '2';
 // - 쓰기는 익명 로그인한 방문자만, 정해진 칸과 글자 수로만 할 수 있습니다.
 // - 고치기는 없고, 지우기는 쓴 사람(같은 브라우저)만 할 수 있습니다.
 //   글/그림을 쓴 사람은 그 아래 달린 댓글도 함께 지울 수 있습니다.
-// - 사이트 주인은 Firebase 콘솔에서 무엇이든 지울 수 있습니다(콘솔은 이 규칙을 거치지 않습니다).
+// - 주인장(아래 두 구글 계정)은 사이트 내용(site/content)과 사진(images)을 고치고,
+//   누구의 글·그림이든 지우거나 그림을 가릴(hidden) 수 있습니다.
+//   원본은 "먼저 등록한 사람이 주인" 이지만, 여기서는 정해 둔 계정만 주인장이 됩니다.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() {
       return request.auth != null;
+    }
+
+    function isOwner() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['milk45453@gmail.com', 'milk454537@gmail.com'];
     }
 
     function data() {
@@ -38,8 +47,32 @@ service cloud.firestore {
       return signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    function mineOrOwner() {
+      return mine() || isOwner();
+    }
+
     function doc(path) {
       return /databases/$(database)/documents/$(path);
+    }
+
+    // 주인장이 고치는 사이트 내용입니다. 문서가 없으면 화면은 코드(src/config)의 값을 씁니다.
+    match /site/content {
+      allow read: if true;
+      allow create, update: if isOwner()
+        && data().keys().hasOnly(['profile', 'tabs', 'blocks', 'waveLinks', 'furniture', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 주인장이 올린 사진입니다. 문서 1MB 제한 안에서 압축한 data URL 한 장씩 담습니다.
+    match /images/{id} {
+      allow read: if true;
+      allow create: if isOwner()
+        && data().keys().hasOnly(['dataUrl'])
+        && data().dataUrl is string
+        && data().dataUrl.size() <= 900000
+        && data().dataUrl.matches('data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+');
+      allow update: if false;
+      allow delete: if isOwner();
     }
 
     match /guestbook/{id} {
@@ -48,7 +81,7 @@ service cloud.firestore {
         && text(data().author, 20)
         && text(data().text, 100);
       allow update: if false;
-      allow delete: if mine();
+      allow delete: if mineOrOwner();
     }
 
     match /guestbookReplies/{id} {
@@ -59,27 +92,32 @@ service cloud.firestore {
         && text(data().author, 20)
         && text(data().text, 100);
       allow update: if false;
-      allow delete: if mine()
+      allow delete: if mineOrOwner()
         || (signedIn() && get(doc(/guestbook/$(resource.data.entryId))).data.uid == request.auth.uid);
     }
 
+    // 가려진(hidden) 그림은 주인장만 봅니다. 그래서 방문자 목록은 hidden == false 로 거릅니다.
     match /oekaki/{id} {
-      allow read: if true;
-      allow create: if ownNew(['author', 'comment', 'image', 'hasReplay', 'uid', 'createdAt'])
+      allow read: if resource.data.hidden == false || isOwner();
+      allow create: if ownNew(['author', 'comment', 'image', 'hasReplay', 'hidden', 'uid', 'createdAt'])
+        && data().hidden == false
         && text(data().author, 20)
         && optionalText(data().comment, 60)
         && data().image is string
         && data().image.size() <= 300000
         && data().image.matches('data:image/png;base64,[A-Za-z0-9+/=]+')
         && data().hasReplay is bool;
-      allow update: if false;
-      allow delete: if mine();
+      // 가림 처리: 주인장만, hidden 한 칸만
+      allow update: if isOwner()
+        && data().diff(resource.data).affectedKeys().hasOnly(['hidden'])
+        && data().hidden is bool;
+      allow delete: if mineOrOwner();
     }
 
     // 그리는 과정 기록은 커서 목록과 따로 둡니다. 그림을 열어 재생할 때만 읽습니다.
     // 문서 id 는 그림 id 와 같고, 그림과 한 번에(batch) 만듭니다.
     match /oekakiReplays/{id} {
-      allow read: if true;
+      allow read: if isOwner() || get(doc(/oekaki/$(id))).data.hidden == false;
       allow create: if signedIn()
         && data().keys().hasOnly(['replay', 'uid'])
         && data().keys().hasAll(['replay', 'uid'])
@@ -88,7 +126,7 @@ service cloud.firestore {
         && data().replay.size() <= 400000
         && getAfter(doc(/oekaki/$(id))).data.uid == request.auth.uid;
       allow update: if false;
-      allow delete: if mine();
+      allow delete: if mineOrOwner();
     }
 
     match /oekakiReplies/{id} {
@@ -99,7 +137,7 @@ service cloud.firestore {
         && text(data().author, 20)
         && text(data().text, 100);
       allow update: if false;
-      allow delete: if mine()
+      allow delete: if mineOrOwner()
         || (signedIn() && get(doc(/oekaki/$(resource.data.drawingId))).data.uid == request.auth.uid);
     }
 

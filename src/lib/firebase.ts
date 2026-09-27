@@ -71,6 +71,48 @@ export async function ensureUid(): Promise<string> {
   return user.uid;
 }
 
+/* ------------------------------------------------------------------ */
+/* 주인장 로그인 (구글)                                                  */
+/* ------------------------------------------------------------------ */
+
+export type SignedInUser = import("firebase/auth").User;
+
+/* 로그인 상태가 바뀔 때마다 알려 줍니다. 돌려준 함수로 멈춥니다. */
+export function subscribeUser(onChange: (user: SignedInUser | null) => void): () => void {
+  let stop: (() => void) | null = null;
+  let stopped = false;
+  cloud()
+    .then(({ auth }) => {
+      if (!stopped) stop = auth.onAuthStateChanged(onChange);
+    })
+    .catch(() => onChange(null));
+  return () => {
+    stopped = true;
+    stop?.();
+  };
+}
+
+/* 팝업으로 구글 로그인합니다. 팝업이 막힌 브라우저에서는 페이지 이동 방식으로 다시 시도합니다. */
+export async function signInWithGoogle(): Promise<void> {
+  const { auth } = await cloud();
+  const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import("firebase/auth");
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    const code = typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "";
+    if (code === "auth/popup-blocked") await signInWithRedirect(auth, provider);
+    else if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") throw error;
+  }
+}
+
+export async function signOutUser(): Promise<void> {
+  const { auth } = await cloud();
+  const { signOut } = await import("firebase/auth");
+  await signOut(auth);
+}
+
 /* Firebase 오류를 방문자에게 보여 줄 문장으로 바꿉니다. */
 export function cloudErrorText(error: unknown, fallback: string): string {
   const code = typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "";
