@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
+  GREETING_LINE,
   GREETING_MODE_ID,
   IDLE_SLEEP_MS,
   characterModes,
@@ -78,7 +79,7 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
     }
     const timer = setTimeout(() => {
       setModeIndex(waveIndex);
-      setBubble(characterModes[waveIndex].lines[0]);
+      setBubble(GREETING_LINE);
       onGreeted();
     }, GREETING_DELAY_MS);
     return () => clearTimeout(timer);

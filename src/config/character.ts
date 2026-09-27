@@ -18,8 +18,9 @@ export type CharacterMode = {
 
 const SRC = "/assets/character";
 
-/* 처음 미니홈피에 들어왔을 때 이 모드로 인사합니다. */
+/* 처음 미니홈피에 들어왔을 때 이 모드로 이 멘트를 띄웁니다. */
 export const GREETING_MODE_ID = "standing";
+export const GREETING_LINE = "반가워요! 잘 왔어요 👋";
 
 export const characterModes: CharacterMode[] = [
   {
@@ -28,8 +29,8 @@ export const characterModes: CharacterMode[] = [
     src: `${SRC}/minime-standing.png`,
     scale: 1,
     lines: [
-      "반가워요! 민규의 미니미예요 👋",
-      "헤드폰 끼면 집중 모드 ON 🎧",
+      "안녕하세요! 민규의 미니미예요.",
+      "오늘도 AI랑 코딩 중!",
       "바닥을 누르면 그쪽으로 걸어가요!",
       "민규의 AI 작업실에 오신 걸 환영해요."
     ]
