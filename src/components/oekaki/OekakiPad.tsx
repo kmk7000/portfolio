@@ -63,7 +63,7 @@ export default function OekakiPad({
 }: {
   defaultAuthor: string;
   /* 저장에 실패하면 예외를 던집니다. 그림판이 안내 문구로 보여 줍니다. */
-  onDone: (result: PadResult) => void;
+  onDone: (result: PadResult) => Promise<void>;
   onCancel: () => void;
 }) {
   const fieldId = useId();
@@ -392,7 +392,10 @@ export default function OekakiPad({
     if (activeId === id) setActiveId(layers.find(l => l.id !== id)!.id);
   };
 
-  const submit = () => {
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (saving) return;
     if (!dirty) {
       setError("그림을 그려 주세요.");
       return;
@@ -409,9 +412,12 @@ export default function OekakiPad({
       /* 숨긴 레이어에 그린 획은 결과에 없으므로 기록에서도 뺍니다. */
       const shown = new Set(layers.map((l, i) => (l.visible ? i : -1)).filter(i => i >= 0));
       const ops = opsRef.current.filter(o => shown.has(o.l));
-      onDone({ image, comment, author, replay: JSON.stringify(ops) });
+      setSaving(true);
+      await onDone({ image, comment, author, replay: JSON.stringify(ops) });
     } catch (e) {
       setError(e instanceof Error ? e.message : "남기지 못했어요.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -593,8 +599,8 @@ export default function OekakiPad({
             aria-label="그림 제목"
             autoComplete="off"
           />
-          <button type="button" className="cy-gb-submit" onClick={submit}>
-            남기기
+          <button type="button" className="cy-gb-submit" onClick={submit} disabled={saving}>
+            {saving ? "남기는 중" : "남기기"}
           </button>
           <button type="button" className="cy-oe-btn" onClick={onCancel}>
             닫기

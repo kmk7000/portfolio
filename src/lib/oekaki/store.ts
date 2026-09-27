@@ -1,10 +1,9 @@
-/* 낙서장 그림과 덧글을 localStorage 에 담습니다.
-   원본은 Firestore 에 (구글 로그인 후) 올리고 모두가 봅니다. 여기서는 이 브라우저에만 남습니다.
-   제한 값은 원본 OEKAKI_LIMITS 와 같습니다. */
+/* 낙서장(오에카키) 그림과 덧글입니다. Firestore(oekaki, oekakiReplies, oekakiReplays)에 담겨
+   모든 방문자에게 보입니다. 여기에는 입력 검사와 받아 온 문서를 화면용으로 바꾸는 계산만 둡니다.
+   (주고받기는 cloud.ts) 제한 값은 원본 OEKAKI_LIMITS 와 같습니다. */
 import { formatDate, formatTime } from "../format.ts";
-import { makeId, readJson, writeJson, type KeyValueStorage } from "../storage.ts";
+import type { Row } from "../guestbook.ts";
 
-export const OEKAKI_KEY = "cy-oekaki";
 export const OEKAKI_LIMITS = {
   comment: 60,
   image: 300000,
@@ -14,6 +13,9 @@ export const OEKAKI_LIMITS = {
 } as const;
 /* 원본은 최근 60장을 불러옵니다. */
 export const OEKAKI_MAX_ITEMS = 60;
+export const OEKAKI_MAX_REPLIES = 300;
+
+const PNG_PREFIX = "data:image/png;base64,";
 
 export type OekakiReply = {
   id: string;
@@ -22,6 +24,7 @@ export type OekakiReply = {
   date: string;
   time: string;
   at: number;
+  mine: boolean;
 };
 
 export type OekakiEntry = {
@@ -29,52 +32,16 @@ export type OekakiEntry = {
   author: string;
   comment: string;
   image: string;
-  /* 그리는 과정 기록(JSON 문자열)입니다. 너무 크면 남기지 않습니다. */
-  replay?: string;
+  /* 그리는 과정 기록이 따로(oekakiReplays) 있는지. 재생할 때만 불러옵니다. */
+  hasReplay: boolean;
   date: string;
   time: string;
   at: number;
+  mine: boolean;
   replies: OekakiReply[];
 };
 
-function isReply(value: unknown): value is OekakiReply {
-  if (!value || typeof value !== "object") return false;
-  const v = value as Record<string, unknown>;
-  return typeof v.id === "string" && typeof v.author === "string" && typeof v.text === "string" && typeof v.at === "number";
-}
-
-function isEntry(value: unknown): value is OekakiEntry {
-  if (!value || typeof value !== "object") return false;
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v.id === "string" &&
-    typeof v.author === "string" &&
-    typeof v.image === "string" &&
-    v.image.startsWith("data:image/png;base64,") &&
-    typeof v.at === "number"
-  );
-}
-
-export function loadDrawings(storage: KeyValueStorage): OekakiEntry[] {
-  const raw = readJson<unknown>(storage, OEKAKI_KEY, []);
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter(isEntry)
-    .map(e => ({
-      ...e,
-      comment: typeof e.comment === "string" ? e.comment : "",
-      date: typeof e.date === "string" ? e.date : formatDate(new Date(e.at)),
-      time: typeof e.time === "string" ? e.time : formatTime(new Date(e.at)),
-      replies: Array.isArray(e.replies) ? e.replies.filter(isReply) : []
-    }))
-    .sort((a, b) => b.at - a.at)
-    .slice(0, OEKAKI_MAX_ITEMS);
-}
-
-function save(storage: KeyValueStorage, items: OekakiEntry[]) {
-  writeJson(storage, OEKAKI_KEY, items.slice(0, OEKAKI_MAX_ITEMS));
-  return items;
-}
+export type DrawingInput = { image: string; comment: string; author: string; replay?: string };
 
 export function cleanAuthor(author: string): string {
   const name = author.trim().slice(0, OEKAKI_LIMITS.author);
@@ -82,63 +49,69 @@ export function cleanAuthor(author: string): string {
   return name;
 }
 
-export function addDrawing(
-  storage: KeyValueStorage,
-  input: { image: string; comment: string; author: string; replay?: string },
-  now: Date = new Date()
-): OekakiEntry[] {
-  if (!input.image.startsWith("data:image/png;base64,")) throw new Error("그림을 만들지 못했어요.");
+/* 올리기 전 검사. 그림 과정 기록은 덤이라 너무 크면 빼고 그림만 올립니다. */
+export function validateDrawing(input: DrawingInput) {
+  if (!input.image.startsWith(PNG_PREFIX)) throw new Error("그림을 만들지 못했어요.");
   if (input.image.length > OEKAKI_LIMITS.image) {
     throw new Error("그림이 너무 복잡해요. 조금 지우고 다시 남겨 주세요.");
   }
-  const entry: OekakiEntry = {
-    id: makeId("oe"),
+  return {
     author: cleanAuthor(input.author),
     comment: input.comment.trim().slice(0, OEKAKI_LIMITS.comment),
     image: input.image,
-    /* 재생은 덤입니다. 너무 크면 그림만 남깁니다. */
-    replay: input.replay && input.replay.length <= OEKAKI_LIMITS.replay ? input.replay : undefined,
-    date: formatDate(now),
-    time: formatTime(now),
-    at: now.getTime(),
-    replies: []
+    replay: input.replay && input.replay.length <= OEKAKI_LIMITS.replay ? input.replay : undefined
   };
-  return save(storage, [entry, ...loadDrawings(storage)]);
 }
 
-export function deleteDrawing(storage: KeyValueStorage, id: string): OekakiEntry[] {
-  return save(storage, loadDrawings(storage).filter(e => e.id !== id));
-}
-
-export function addReply(
-  storage: KeyValueStorage,
-  drawingId: string,
-  input: { author: string; text: string },
-  now: Date = new Date()
-): OekakiEntry[] {
+export function validateOekakiReply(input: { author: string; text: string }) {
   const text = input.text.trim();
   if (!text) throw new Error("댓글을 적어 주세요.");
   if (text.length > OEKAKI_LIMITS.reply) throw new Error(`댓글은 ${OEKAKI_LIMITS.reply}자까지 쓸 수 있어요.`);
-  const author = cleanAuthor(input.author);
-  const reply: OekakiReply = {
-    id: makeId("re"),
-    author,
-    text,
-    date: formatDate(now),
-    time: formatTime(now),
-    at: now.getTime()
-  };
-  return save(
-    storage,
-    loadDrawings(storage).map(e => (e.id === drawingId ? { ...e, replies: [...e.replies, reply] } : e))
-  );
+  return { author: cleanAuthor(input.author), text };
 }
 
-export function deleteReply(storage: KeyValueStorage, drawingId: string, replyId: string): OekakiEntry[] {
-  return save(
-    storage,
-    loadDrawings(storage).map(e =>
-      e.id === drawingId ? { ...e, replies: e.replies.filter(r => r.id !== replyId) } : e
-    )
-  );
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+const millis = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Date.now());
+
+/* 문서 목록 → 화면용 목록. 최근 그림이 위, 덧글은 오래된 것이 위입니다.
+   PNG 가 아닌 그림과 지워진 그림의 덧글은 보이지 않습니다. */
+export function buildDrawings(drawings: readonly Row[], replies: readonly Row[], myUid: string | null): OekakiEntry[] {
+  const byDrawing = new Map<string, OekakiReply[]>();
+  for (const r of replies) {
+    const drawingId = str(r.data.drawingId);
+    const author = str(r.data.author);
+    const text = str(r.data.text);
+    if (!drawingId || !author || !text) continue;
+    const at = millis(r.data.createdAt);
+    const list = byDrawing.get(drawingId) ?? [];
+    list.push({
+      id: r.id,
+      author,
+      text,
+      at,
+      date: formatDate(new Date(at)),
+      time: formatTime(new Date(at)),
+      mine: !!myUid && r.data.uid === myUid
+    });
+    byDrawing.set(drawingId, list);
+  }
+  return drawings
+    .filter(d => str(d.data.author) && str(d.data.image).startsWith(PNG_PREFIX))
+    .map(d => {
+      const at = millis(d.data.createdAt);
+      return {
+        id: d.id,
+        author: str(d.data.author),
+        comment: str(d.data.comment),
+        image: str(d.data.image),
+        hasReplay: d.data.hasReplay === true,
+        at,
+        date: formatDate(new Date(at)),
+        time: formatTime(new Date(at)),
+        mine: !!myUid && d.data.uid === myUid,
+        replies: (byDrawing.get(d.id) ?? []).sort((a, b) => a.at - b.at)
+      };
+    })
+    .sort((a, b) => b.at - a.at)
+    .slice(0, OEKAKI_MAX_ITEMS);
 }

@@ -15,16 +15,7 @@ import {
   segmentsPerFrame,
   trackPoint
 } from "../src/lib/oekaki/draw.ts";
-import {
-  OEKAKI_KEY,
-  OEKAKI_LIMITS,
-  addDrawing,
-  addReply,
-  deleteDrawing,
-  deleteReply,
-  loadDrawings
-} from "../src/lib/oekaki/store.ts";
-import { createMemoryStorage } from "../src/lib/storage.ts";
+import { OEKAKI_LIMITS, buildDrawings, validateDrawing, validateOekakiReply } from "../src/lib/oekaki/store.ts";
 
 /* 5x5 흰 그림 가운데에 검은 세로줄(x=2)을 그어 좌우를 나눕니다. */
 function splitImage() {
@@ -100,44 +91,44 @@ test("parseReplay keeps only well-formed ops", () => {
 
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
 
-test("drawings are stored newest first with trimmed fields", () => {
-  const storage = createMemoryStorage();
-  addDrawing(storage, { image: PNG, comment: " 첫 그림 ", author: " 이나 " }, new Date(2026, 8, 7, 0, 49));
-  const list = addDrawing(storage, { image: PNG, comment: "", author: "창욱", replay: "[]" }, new Date(2026, 8, 8, 12, 0));
-  assert.deepEqual(list.map(d => d.author), ["창욱", "이나"]);
-  assert.equal(list[1].comment, "첫 그림");
-  assert.equal(list[1].date, "2026.09.07");
-  assert.equal(list[1].time, "00:49");
-  assert.equal(loadDrawings(storage).length, 2);
+const row = (id: string, data: Record<string, unknown>) => ({ id, data });
+
+test("validateDrawing trims fields and drops an oversized replay", () => {
+  const v = validateDrawing({ image: PNG, comment: " 첫 그림 ", author: " 이나 ", replay: "[]" });
+  assert.deepEqual(v, { image: PNG, comment: "첫 그림", author: "이나", replay: "[]" });
+  const big = validateDrawing({ image: PNG, comment: "", author: "a", replay: "x".repeat(OEKAKI_LIMITS.replay + 1) });
+  assert.equal(big.replay, undefined);
 });
 
 test("drawing validation rejects bad images, huge images and empty names", () => {
-  const storage = createMemoryStorage();
-  assert.throws(() => addDrawing(storage, { image: "data:image/jpeg;base64,xx", comment: "", author: "a" }), /그림을 만들지/);
+  assert.throws(() => validateDrawing({ image: "data:image/jpeg;base64,xx", comment: "", author: "a" }), /그림을 만들지/);
   const huge = PNG + "A".repeat(OEKAKI_LIMITS.image);
-  assert.throws(() => addDrawing(storage, { image: huge, comment: "", author: "a" }), /너무 복잡/);
-  assert.throws(() => addDrawing(storage, { image: PNG, comment: "", author: "  " }), /이름을 적어/);
-  const tooLongReplay = "x".repeat(OEKAKI_LIMITS.replay + 1);
-  const [saved] = addDrawing(storage, { image: PNG, comment: "", author: "a", replay: tooLongReplay });
-  assert.equal(saved.replay, undefined);
+  assert.throws(() => validateDrawing({ image: huge, comment: "", author: "a" }), /너무 복잡/);
+  assert.throws(() => validateDrawing({ image: PNG, comment: "", author: "  " }), /이름을 적어/);
 });
 
-test("drawing replies and deletion", () => {
-  const storage = createMemoryStorage();
-  const [drawing] = addDrawing(storage, { image: PNG, comment: "", author: "창욱" });
-  let list = addReply(storage, drawing.id, { author: "민규", text: "안돼 거울이다!" });
-  assert.equal(list[0].replies.length, 1);
-  assert.throws(() => addReply(storage, drawing.id, { author: "a", text: " " }), /댓글을 적어/);
-  assert.throws(() => addReply(storage, drawing.id, { author: "a", text: "가".repeat(101) }), /100자/);
-  list = deleteReply(storage, drawing.id, list[0].replies[0].id);
+test("reply validation", () => {
+  assert.deepEqual(validateOekakiReply({ author: " 민규 ", text: " 안돼 거울이다! " }), { author: "민규", text: "안돼 거울이다!" });
+  assert.throws(() => validateOekakiReply({ author: "a", text: " " }), /댓글을 적어/);
+  assert.throws(() => validateOekakiReply({ author: "a", text: "가".repeat(101) }), /100자/);
+});
+
+test("buildDrawings sorts newest first, formats time, marks mine and ignores non-PNG rows", () => {
+  const list = buildDrawings(
+    [
+      row("d1", { author: "이나", comment: "첫 그림", image: PNG, uid: "me", createdAt: new Date(2026, 8, 7, 0, 49).getTime() }),
+      row("d2", { author: "창욱", comment: "", image: PNG, hasReplay: true, uid: "you", createdAt: new Date(2026, 8, 8, 12).getTime() }),
+      row("evil", { author: "x", image: "http://evil", createdAt: 1 })
+    ],
+    [
+      row("r1", { drawingId: "d1", author: "민규", text: "귀여워", uid: "you", createdAt: new Date(2026, 8, 9).getTime() }),
+      row("r2", { drawingId: "gone", author: "민규", text: "고아", createdAt: 1 })
+    ],
+    "me"
+  );
+  assert.deepEqual(list.map(d => d.author), ["창욱", "이나"]);
+  assert.deepEqual([list[1].date, list[1].time], ["2026.09.07", "00:49"]);
+  assert.deepEqual(list.map(d => [d.mine, d.hasReplay]), [[false, true], [true, false]]);
+  assert.deepEqual(list[1].replies.map(r => r.text), ["귀여워"]);
   assert.equal(list[0].replies.length, 0);
-  assert.deepEqual(deleteDrawing(storage, drawing.id), []);
-});
-
-test("loadDrawings ignores corrupt entries", () => {
-  const storage = createMemoryStorage();
-  storage.setItem(OEKAKI_KEY, JSON.stringify([{ id: "x", author: "a", image: "http://evil", at: 1 }, "junk"]));
-  assert.deepEqual(loadDrawings(storage), []);
-  storage.setItem(OEKAKI_KEY, "not json");
-  assert.deepEqual(loadDrawings(storage), []);
 });

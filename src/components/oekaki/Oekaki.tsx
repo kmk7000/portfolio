@@ -1,22 +1,16 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { loadAuthor, saveAuthor } from "../../lib/author.ts";
+import { cloudErrorText } from "../../lib/firebase.ts";
 import { PAGE_SIZE, parseReplay, type ReplayOp } from "../../lib/oekaki/draw.ts";
-import {
-  OEKAKI_LIMITS,
-  addDrawing,
-  addReply,
-  deleteDrawing,
-  deleteReply,
-  loadDrawings,
-  type OekakiEntry
-} from "../../lib/oekaki/store.ts";
+import { OEKAKI_LIMITS, type OekakiEntry } from "../../lib/oekaki/store.ts";
+import { addDrawing, addReply, deleteDrawing, deleteReply, loadReplay, subscribeOekaki } from "../../lib/oekaki/cloud.ts";
 import { paginate } from "../../lib/guestbook.ts";
 import { getStorage } from "../../lib/storage.ts";
 import Pagination from "../Pagination.tsx";
 import OekakiPad, { type PadResult } from "./OekakiPad.tsx";
 import OekakiPlayer from "./OekakiPlayer.tsx";
 
-const errorText = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
+const errorText = cloudErrorText;
 
 /* 목록 한 줄. 그림 옆에 제목, 글쓴이, 날짜, 최근 덧글이 붙습니다. */
 function OekakiRow({ item, onOpen }: { item: OekakiEntry; onOpen: () => void }) {
@@ -57,56 +51,60 @@ function OekakiRow({ item, onOpen }: { item: OekakiEntry; onOpen: () => void }) 
 }
 
 /* 그림 한 장을 크게 보고 덧글을 다는 화면 */
-function OekakiDetail({
-  item,
-  onClose,
-  onChange
-}: {
-  item: OekakiEntry;
-  onClose: () => void;
-  onChange: (items: OekakiEntry[]) => void;
-}) {
+function OekakiDetail({ item, onClose }: { item: OekakiEntry; onClose: () => void }) {
   const fieldId = useId();
   const [text, setText] = useState("");
   const [replyAuthor, setReplyAuthor] = useState(() => loadAuthor(getStorage()));
   const [error, setError] = useState<string | null>(null);
   const [ops, setOps] = useState<ReplayOp[] | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const play = () => {
+  const play = async () => {
     setError(null);
-    const parsed = item.replay ? parseReplay(item.replay) : [];
-    if (parsed.length === 0) {
+    if (!item.hasReplay) {
       setError("이 그림은 그리는 과정이 기록되지 않았어요.");
       return;
     }
-    setOps(parsed);
-  };
-
-  const send = () => {
-    setError(null);
+    setBusy(true);
     try {
-      const storage = getStorage();
-      onChange(addReply(storage, item.id, { author: replyAuthor, text }));
-      saveAuthor(storage, replyAuthor);
-      setText("");
+      const parsed = parseReplay((await loadReplay(item.id)) ?? "");
+      if (parsed.length === 0) setError("이 그림은 그리는 과정이 기록되지 않았어요.");
+      else setOps(parsed);
     } catch (e) {
-      setError(errorText(e, "처리하지 못했어요."));
+      setError(errorText(e, "그리는 과정을 불러오지 못했어요."));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const removeDrawing = () => {
+  const send = async () => {
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await addReply(item.id, { author: replyAuthor, text });
+      saveAuthor(getStorage(), replyAuthor);
+      setText("");
+    } catch (e) {
+      setError(errorText(e, "처리하지 못했어요."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeDrawing = async () => {
     if (!window.confirm("이 그림을 지울까요? 되돌릴 수 없어요.")) return;
     try {
-      onChange(deleteDrawing(getStorage(), item.id));
+      await deleteDrawing(item);
       onClose();
     } catch (e) {
       setError(errorText(e, "처리하지 못했어요."));
     }
   };
 
-  const removeReply = (replyId: string) => {
+  const removeReply = async (replyId: string) => {
     try {
-      onChange(deleteReply(getStorage(), item.id, replyId));
+      await deleteReply(replyId);
     } catch (e) {
       setError(errorText(e, "처리하지 못했어요."));
     }
@@ -123,13 +121,15 @@ function OekakiDetail({
             그림 보기
           </button>
         ) : (
-          <button type="button" className="cy-oe-btn" onClick={play}>
+          <button type="button" className="cy-oe-btn" onClick={play} disabled={busy}>
             그리는 과정 재생
           </button>
         )}
-        <button type="button" className="cy-oe-btn" onClick={removeDrawing}>
-          그림 삭제
-        </button>
+        {item.mine ? (
+          <button type="button" className="cy-oe-btn" onClick={removeDrawing}>
+            그림 삭제
+          </button>
+        ) : null}
       </div>
 
       {ops ? (
@@ -156,9 +156,11 @@ function OekakiDetail({
               <span className="cy-oe-reply-text">{r.text}</span>
               <span className="cy-oe-date">
                 {r.date} {r.time}
-                <button type="button" className="cg-act" onClick={() => removeReply(r.id)}>
-                  삭제
-                </button>
+                {r.mine || item.mine ? (
+                  <button type="button" className="cg-act" onClick={() => removeReply(r.id)}>
+                    삭제
+                  </button>
+                ) : null}
               </span>
             </div>
           ))
@@ -194,7 +196,7 @@ function OekakiDetail({
           aria-label="덧글"
           autoComplete="off"
         />
-        <button type="submit" className="cy-gb-submit">
+        <button type="submit" className="cy-gb-submit" disabled={busy}>
           덧글
         </button>
       </form>
@@ -209,9 +211,11 @@ function OekakiDetail({
 }
 
 /* 낙서장(오에카키) — 그림으로 남기는 방명록입니다.
-   원본은 구글 로그인 후 Firestore 에 올립니다. 여기서는 바로 그릴 수 있고 이 브라우저에만 남습니다. */
+   원본은 구글 로그인 후 올립니다. 여기서는 바로 그릴 수 있고, 남긴 그림은 모든 방문자에게 보입니다. */
 export default function Oekaki() {
-  const [items, setItems] = useState<OekakiEntry[]>(() => loadDrawings(getStorage()));
+  /* null: 아직 불러오는 중 */
+  const [items, setItems] = useState<OekakiEntry[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -219,17 +223,34 @@ export default function Oekaki() {
   const [notice, setNotice] = useState<string | null>(null);
   const helpId = useId();
 
-  const save = (result: PadResult) => {
-    const storage = getStorage();
-    setItems(addDrawing(storage, result));
-    saveAuthor(storage, result.author);
+  useEffect(
+    () =>
+      subscribeOekaki(
+        next => {
+          setItems(next);
+          setLoadError(null);
+        },
+        error => setLoadError(errorText(error, "낙서장을 불러오지 못했어요."))
+      ),
+    []
+  );
+
+  /* 실패하면 OekakiPad 가 오류를 보여 주도록 다시 던집니다. 그린 그림은 그대로 남습니다. */
+  const save = async (result: PadResult) => {
+    try {
+      await addDrawing(result);
+    } catch (error) {
+      throw new Error(errorText(error, "그림을 남기지 못했어요. 잠시 뒤 다시 시도해 주세요."));
+    }
+    saveAuthor(getStorage(), result.author);
     setOpen(false);
     setPage(0);
     setNotice("그림을 남겼어요. 고맙습니다!");
   };
 
-  const viewing = items.find(i => i.id === openId) ?? null;
-  const { pageCount, current, items: shown } = paginate(items, page, PAGE_SIZE);
+  const list = items ?? [];
+  const viewing = list.find(i => i.id === openId) ?? null;
+  const { pageCount, current, items: shown } = paginate(list, page, PAGE_SIZE);
 
   return (
     <div className="cy-content-box">
@@ -269,7 +290,7 @@ export default function Oekaki() {
       ) : null}
 
       {viewing ? (
-        <OekakiDetail key={viewing.id} item={viewing} onClose={() => setOpenId(null)} onChange={setItems} />
+        <OekakiDetail key={viewing.id} item={viewing} onClose={() => setOpenId(null)} />
       ) : (
         <>
           {open ? (
@@ -294,7 +315,13 @@ export default function Oekaki() {
             </div>
           )}
 
-          {items.length === 0 ? (
+          {loadError ? (
+            <div className="cy-gb-loading" role="alert">
+              {loadError}
+            </div>
+          ) : items === null ? (
+            <div className="cy-gb-loading">낙서장을 불러오는 중이에요…</div>
+          ) : list.length === 0 ? (
             <div className="cy-gb-loading">아직 그림이 없어요.</div>
           ) : (
             <>
