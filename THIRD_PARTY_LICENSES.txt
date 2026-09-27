@@ -12,8 +12,8 @@ Files derived from those projects:
                                  furniture images; except
                                  public/assets/profile.png,
                                  public/assets/projects/** and
-                                 public/assets/character/** (drawn by
-                                 scripts/make-minime.py), which are the site
+                                 public/assets/character/** (the site
+                                 owner's character, made with Codex), which are the site
                                  owner's own images, not from those projects)
   - src/styles/**               (ported from src/app/globals.css)
   - src/components/**, src/lib/**, src/config/**  (ported and adapted)

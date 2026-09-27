@@ -130,11 +130,17 @@
 }
 
 /* 미니룸 캐릭터: 방향키로 움직이고 클릭하면 모드가 바뀝니다 */
+.cy-miniroom-stage {
+  /* 캐릭터(서 있는 포즈) 크기입니다. 포즈별 scale 을 곱해 씁니다. */
+  --char-h: 27%;
+  --char-min: 52px;
+  --char-max: 110px;
+}
 .cy-miniroom-stage .cy-miniroom-character {
   position: absolute;
-  height: 21.6%;
-  min-height: 41px;
-  max-height: 86px;
+  height: var(--char-h);
+  min-height: var(--char-min);
+  max-height: var(--char-max);
   background: none;
   border: none;
   padding: 0;

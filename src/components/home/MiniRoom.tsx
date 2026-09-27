@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { characterModes } from "../../config/character.ts";
+import { GREETING_MODE_ID, characterModes } from "../../config/character.ts";
 import { furnitureItems } from "../../config/furniture.ts";
 import { profile } from "../../config/site.ts";
 import { asset } from "../../lib/asset.ts";
@@ -64,7 +64,7 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
      캐릭터를 클릭해서 모드를 바꾸기 전까지 떠 있습니다. */
   useEffect(() => {
     if (!greet) return;
-    const waveIndex = characterModes.findIndex(m => m.id === "waving");
+    const waveIndex = characterModes.findIndex(m => m.id === GREETING_MODE_ID);
     if (waveIndex === -1) {
       onGreeted();
       return;
@@ -355,6 +355,10 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
         style={{
           left: `${pos.x}%`,
           top: `${pos.y}%`,
+          /* 포즈마다 그림 높이가 달라서, 사람 크기가 같아 보이도록 비율대로 줄입니다. (CSS 기본값 × scale) */
+          height: `calc(var(--char-h) * ${mode.scale})`,
+          minHeight: `calc(var(--char-min) * ${mode.scale})`,
+          maxHeight: `calc(var(--char-max) * ${mode.scale})`,
           transform: `translate(-50%, -100%) scaleX(${flipScale})`
         }}
         onClick={onCharClick}
