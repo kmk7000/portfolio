@@ -334,8 +334,8 @@ export const projects: Project[] = [
       }
     ],
     shots: [
-      { src: `${SHOT}/welmes/home.webp`, caption: "스토어 첫 화면" },
-      { src: `${SHOT}/welmes/products.webp`, caption: "상품 목록 (도매가는 가입 후 공개)" },
+      { src: `${SHOT}/welmes/home.webp`, caption: "Store home" },
+      { src: `${SHOT}/welmes/products.webp`, caption: "All products (wholesale prices unlock after sign-up)" },
       { src: `${SHOT}/welmes/video-1.webp`, caption: "홍보 영상 장면 1" },
       { src: `${SHOT}/welmes/video-2.webp`, caption: "홍보 영상 장면 2" },
       { src: `${SHOT}/welmes/video-3.webp`, caption: "홍보 영상 장면 3" }
