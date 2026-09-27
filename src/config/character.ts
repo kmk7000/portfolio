@@ -1,7 +1,7 @@
 /* 미니룸 캐릭터(미니미) 모드입니다. 클릭(톡)할 때마다 다음 모드로 바뀌고, 해당 모드의 멘트 중
    하나가 말풍선으로 뜹니다.
-   그림은 프로필 그림을 바탕으로 Codex 로 만든 8포즈 시트(design/minime-codex-source.png,
-   저장소에는 올리지 않음)를 포즈별로 잘라 쓴 것입니다.
+   그림은 프로필 그림을 바탕으로 Codex 로 만든 시트 두 장(design/minime-codex-source*.png,
+   저장소에는 올리지 않음)에서 필요한 포즈만 잘라 쓴 것입니다.
    scale 은 서 있는 포즈 대비 그림 높이입니다. 책상·의자가 있는 포즈도 사람 크기가 같아 보이게
    이 비율대로 줄여 그립니다. */
 export type CharacterMode = {
@@ -33,6 +33,14 @@ export const characterModes: CharacterMode[] = [
       "바닥을 누르면 그쪽으로 걸어가요!",
       "민규의 AI 작업실에 오신 걸 환영해요."
     ]
+  },
+  {
+    id: "float",
+    label: "둥실",
+    src: `${SRC}/minime-float.png`,
+    scale: 0.994,
+    float: true,
+    lines: ["둥실~ 아이디어 충전 중 ✨", "머릿속으로 설계 그리는 중…", "무중력 상태로 버그 생각 중", "다음엔 뭘 만들어 볼까?"]
   },
   {
     id: "coding",
@@ -91,3 +99,16 @@ export const characterModes: CharacterMode[] = [
     lines: ["테스트 전부 통과! ✅ 이제 쉬어요", "배포 끝~ 기지개 한 번 🙆", "초록불 보면서 휴식 중 😌", "프로젝트 탭도 구경해 보세요!"]
   }
 ];
+
+/* 모드와 별개로, 상황에 따라 잠깐 바뀌는 그림입니다.
+   - walk: 서 있는 포즈로 걸어갈 때(바닥 누르기·끌기·방향키) 보여 줍니다. 떠다니는 포즈는 그대로 둥실 이동합니다.
+   - sleep: 한동안 아무도 건드리지 않으면 졸기 시작합니다. 누르면 깹니다. */
+export const specialSprites = {
+  walk: { src: `${SRC}/minime-walk.png`, scale: 1.022, label: "걷기" },
+  sleep: { src: `${SRC}/minime-sleep.png`, scale: 1.041, label: "졸기" }
+} as const;
+
+/* 이만큼(ms) 아무 조작이 없으면 졸기 시작합니다. */
+export const IDLE_SLEEP_MS = 40_000;
+export const sleepLines = ["Zzz… (눌러서 깨워 주세요)", "쿨쿨… 빌드 끝나면 깨워 주세요 💤"];
+export const wakeLines = ["앗, 깜빡 졸았어요! 😳", "잠깐 눈만 감았어요… 진짜로요!"];

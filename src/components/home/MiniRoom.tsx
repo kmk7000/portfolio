@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { GREETING_MODE_ID, characterModes } from "../../config/character.ts";
+import {
+  GREETING_MODE_ID,
+  IDLE_SLEEP_MS,
+  characterModes,
+  sleepLines,
+  specialSprites,
+  wakeLines
+} from "../../config/character.ts";
 import { furnitureItems } from "../../config/furniture.ts";
 import { profile } from "../../config/site.ts";
 import { asset } from "../../lib/asset.ts";
@@ -85,6 +92,10 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
       if (event.altKey || event.ctrlKey || event.metaKey || isEditableTarget(event.target)) return;
       event.preventDefault();
       stopWalking();
+      nudgeRef.current();
+      setKeyWalking(true);
+      if (keyWalkTimer.current) clearTimeout(keyWalkTimer.current);
+      keyWalkTimer.current = setTimeout(() => setKeyWalking(false), 260);
       const key = event.key;
       if (key === "ArrowLeft") setFacing("left");
       if (key === "ArrowRight") setFacing("right");
@@ -203,7 +214,10 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
     if (!press || press.id !== event.pointerId) return;
     if (!isTap(event.clientX - press.x, event.clientY - press.y, performance.now() - press.at)) return;
     const target = stagePoint(event.clientX, event.clientY);
-    if (target) walkTo(target);
+    if (target) {
+      nudge();
+      walkTo(target);
+    }
   };
 
   /* 캐릭터 끌기 */
@@ -221,6 +235,7 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
       if (isTap(event.clientX - press.x, event.clientY - press.y, 0)) return;
       press.dragging = true;
       stopWalking();
+      nudge();
       setDraggingChar(true);
     }
     const target = stagePoint(event.clientX, event.clientY);
@@ -243,10 +258,67 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
       suppressClick.current = false;
       return;
     }
+    if (sleeping) {
+      /* 졸고 있으면 모드를 바꾸지 않고 깨우기만 합니다. */
+      nudge();
+      say(pick(wakeLines));
+      return;
+    }
+    nudge();
     cycleMode();
   };
 
+  /* ---------------- 졸기 ----------------
+     한동안 아무도 건드리지 않으면 졸기 시작하고, 누르거나 움직이면 깹니다. */
+  const [sleeping, setSleeping] = useState(false);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pick = (list: readonly string[]) => list[Math.floor(Math.random() * list.length)];
+  const say = (line: string) => {
+    setBubble(line);
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_DURATION_MS);
+  };
+  function nudge() {
+    setSleeping(false);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => {
+      setSleeping(true);
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      setBubble(pick(sleepLines));
+    }, IDLE_SLEEP_MS);
+  }
+  const nudgeRef = useRef(nudge);
+  nudgeRef.current = nudge;
+  useEffect(() => {
+    nudgeRef.current();
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  }, []);
+  /* 편집 중에는 졸지 않습니다. */
+  useEffect(() => {
+    if (editMode) nudgeRef.current();
+  }, [editMode]);
+
+  /* 걷기·졸기 그림은 처음 쓰는 순간 비어 보이지 않게 미리 받아 둡니다. */
+  useEffect(() => {
+    for (const sp of Object.values(specialSprites)) {
+      const img = new Image();
+      img.src = asset(sp.src);
+    }
+  }, []);
+
+  const [keyWalking, setKeyWalking] = useState(false);
+  const keyWalkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const mode = characterModes[modeIndex];
+  /* 지금 보여 줄 그림: 졸면 졸기, 서 있는 포즈로 움직이는 중이면 걷기, 아니면 모드 그림 */
+  const moving = walking || draggingChar || keyWalking;
+  const sprite = sleeping
+    ? specialSprites.sleep
+    : moving && !mode.float
+      ? specialSprites.walk
+      : { src: mode.src, scale: mode.scale, label: mode.label };
 
   /* 캐릭터와 가장 가까운 가구의 상호작용 문구입니다. 클릭으로 뜬 모드 멘트가 먼저입니다. */
   const nearbyItem = useMemo(() => findNearby(pos, furnitureItems, layout), [pos, layout]);
@@ -349,7 +421,8 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
           "cy-miniroom-character" +
           (walking ? " is-walking" : "") +
           (draggingChar ? " is-dragging" : "") +
-          (mode.float ? " is-floating" : "")
+          (mode.float && !sleeping ? " is-floating" : "") +
+          (sleeping ? " is-sleeping" : "")
         }
         onPointerDown={onCharPointerDown}
         onPointerMove={onCharPointerMove}
@@ -359,13 +432,13 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
           left: `${pos.x}%`,
           top: `${pos.y}%`,
           /* 포즈마다 그림 높이가 달라서, 사람 크기가 같아 보이도록 비율대로 줄입니다. (CSS 기본값 × scale) */
-          height: `calc(var(--char-h) * ${mode.scale})`,
-          minHeight: `calc(var(--char-min) * ${mode.scale})`,
-          maxHeight: `calc(var(--char-max) * ${mode.scale})`,
+          height: `calc(var(--char-h) * ${sprite.scale})`,
+          minHeight: `calc(var(--char-min) * ${sprite.scale})`,
+          maxHeight: `calc(var(--char-max) * ${sprite.scale})`,
           transform: `translate(-50%, -100%) scaleX(${flipScale})`
         }}
         onClick={onCharClick}
-        aria-label={`캐릭터 모드 바꾸기 (현재: ${mode.label})`}
+        aria-label={sleeping ? "졸고 있는 캐릭터 깨우기" : `캐릭터 모드 바꾸기 (현재: ${mode.label})`}
       >
         {displayBubble ? (
           <span
@@ -375,8 +448,8 @@ export default function MiniRoom({ greet, onGreeted }: { greet: boolean; onGreet
             {displayBubble}
           </span>
         ) : null}
-        {mode.float ? <span className="cy-char-shadow" aria-hidden="true" /> : null}
-        <img src={asset(mode.src)} alt={`미니미 - ${mode.label}`} draggable={false} />
+        {mode.float && !sleeping ? <span className="cy-char-shadow" aria-hidden="true" /> : null}
+        <img src={asset(sprite.src)} alt={`미니미 - ${sprite.label}`} draggable={false} />
       </button>
 
       {/* 말풍선 내용을 화면 낭독기에도 알려 줍니다. */}
